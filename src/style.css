@@ -42,8 +42,12 @@ select {
   cursor: pointer;
 }
 
-button:hover:not(:disabled) {
-  background: var(--control-hover);
+/* Only devices with a real mouse get hover. On touch screens a tapped button stays "hovered"
+   until you tap elsewhere, which turned a pressed toggle grey. */
+@media (hover: hover) {
+  button:hover:not(:disabled) {
+    background: var(--control-hover);
+  }
 }
 
 button:disabled {
@@ -51,7 +55,8 @@ button:disabled {
   cursor: not-allowed;
 }
 
-button[aria-pressed='true'] {
+button[aria-pressed='true'],
+button[aria-pressed='true']:hover:not(:disabled) {
   background: var(--accent);
   border-color: var(--accent);
   color: #fff;
@@ -124,10 +129,16 @@ button[aria-pressed='true'] {
   white-space: nowrap;
 }
 
-.song[aria-current='true'],
-.song:hover:not(:disabled) {
+.song[aria-current='true'] {
   background: var(--accent);
   color: #fff;
+}
+
+@media (hover: hover) {
+  .song:hover:not(:disabled) {
+    background: var(--accent);
+    color: #fff;
+  }
 }
 
 #splitter {
