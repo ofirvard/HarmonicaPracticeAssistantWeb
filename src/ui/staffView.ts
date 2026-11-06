@@ -13,6 +13,8 @@ const BASE_GLYPH_SCALE = 39;
 const TEXT_COLOR = '#e8e8e8';
 const NOTE_COLOR = '#39ff88';
 const PENDING_COLOR = '#5a5a5a';
+const LINE_GAP = 20;
+const EDGE_PADDING = 10;
 
 /**
  * Draws entries as staff notation with VexFlow. render() rebuilds the whole SVG, so it's O(n) in
@@ -77,6 +79,7 @@ export class StaffView {
     const pending = this.practiceIndex !== null && index >= this.practiceIndex;
     const color = pending ? PENDING_COLOR : NOTE_COLOR;
     note.setStyle({ fillStyle: color, strokeStyle: color });
+    note.setLedgerLineStyle({ strokeStyle: TEXT_COLOR });
 
     entry.keys.forEach((key, i) => {
       if (key.includes('#')) {
@@ -99,8 +102,8 @@ export class StaffView {
   }
 
   private render(): void {
-    const { spacing, noteScale, annotationSize } = this.options;
     const { scroller, container, entries } = this;
+    const { spacing } = this.options;
     // Rebuilding empties the scroller for a moment, which would otherwise reset its position.
     const scrollTop = scroller.scrollTop;
     container.innerHTML = '';
@@ -109,32 +112,22 @@ export class StaffView {
     }
 
     const perLine = Math.max(1, Math.floor((scroller.clientWidth - 40) / spacing));
-    const lines = layoutLines(entries, perLine);
-
-    // Room past the last note, since a label like "C5+E5" is centered on it and can overhang.
-    const annotationMargin = 60 * (annotationSize / 12);
-    // These grow with glyph and text size so nothing collides, but are floored at the base values
-    // because shrinking a note only shrinks its head, not its fixed-length stem.
-    const hasLyrics = entries.some((entry) => entry.lyric);
-    const lineHeight =
-      Math.max(150, 150 * noteScale + (annotationSize - 12) * 4) +
-      (hasLyrics ? annotationSize + 10 : 0);
-    const topMargin = Math.max(40, 40 * noteScale + (annotationSize - 12) * 2);
-
-    const widestLine = Math.max(...lines.map((line) => line.entries.length));
     const renderer = new Renderer(container as HTMLDivElement, Renderer.Backends.SVG);
-    renderer.resize(
-      widestLine * spacing + 40 + annotationMargin,
-      lines.length * lineHeight + topMargin + 20,
-    );
+    renderer.resize(scroller.clientWidth, 1);
     const context = renderer.getContext();
     context.setFillStyle(TEXT_COLOR);
     context.setStrokeStyle(TEXT_COLOR);
 
+    // Each line is drawn at the top, measured, then moved into place. How far a line reaches
+    // depends on its pitches, stems, labels and sizes, so only the drawn result can say how much
+    // room it needs. A high note can rise far above the stave.
     let index = 0;
-    lines.forEach((line, lineIndex) => {
+    let y = 0;
+    let width = 0;
+    for (const line of layoutLines(entries, perLine)) {
+      const group = context.openGroup('staff-line') as SVGGElement;
       const staveWidth = line.entries.length * spacing + 20;
-      const stave = new Stave(10, lineIndex * lineHeight + topMargin, staveWidth);
+      const stave = new Stave(10, 0, staveWidth);
       if (line.startsPhrase) {
         stave.addClef('treble');
       }
@@ -145,7 +138,17 @@ export class StaffView {
       voice.addTickables(notes);
       new Formatter().joinVoices([voice]).format([voice], staveWidth - 40);
       voice.draw(context, stave);
-    });
+      context.closeGroup();
+
+      const box = group.getBBox();
+      // The stave's own space above its top line, kept as a minimum so that lines of ordinary
+      // notes stay evenly spaced.
+      const top = Math.min(box.y, 0);
+      group.setAttribute('transform', `translate(0, ${y - top})`);
+      y += box.y + box.height - top + LINE_GAP;
+      width = Math.max(width, box.x + box.width);
+    }
+    renderer.resize(Math.ceil(width + EDGE_PADDING), Math.ceil(y));
 
     scroller.scrollTop = scrollTop;
   }

@@ -1,5 +1,8 @@
 import './style.css';
+import { startListening } from './audio/listener';
+import { MicError, type MicSession } from './audio/mic';
 import { Bend, HARMONICA_KEYS, Harmonica, keyByName } from './core/harmonica';
+import { SILENCE_RMS_THRESHOLD } from './core/pitchDetector';
 import { parseSong } from './core/songParser';
 import { songToItems, toEntries, type StaffItem } from './core/staff';
 import { DEFAULT_SETTINGS, LIMITS, loadSettings, saveSettings, type Settings } from './settings';
@@ -194,6 +197,62 @@ function bindSplitter(): void {
   });
   document.documentElement.style.setProperty('--sidebar-width', `${settings.sidebarWidth}px`);
 }
+
+/** Maps an RMS level onto a 60 dB meter, since loudness is heard logarithmically. */
+function levelPercent(rms: number): number {
+  const db = 20 * Math.log10(Math.max(rms, 1e-6));
+  return Math.min(100, Math.max(0, ((db + 60) / 60) * 100));
+}
+
+let mic: MicSession | null = null;
+const recordButton = el<HTMLButtonElement>('record-button');
+const levelMeter = el('level');
+const levelFill = el('level-fill');
+
+function stopRecording(): void {
+  mic?.close();
+  mic = null;
+  recordButton.textContent = 'Record';
+  recordButton.disabled = false;
+  levelMeter.hidden = true;
+}
+
+async function startRecording(): Promise<void> {
+  recordButton.disabled = true;
+  showStatus('');
+  try {
+    mic = await startListening({
+      onNotes(notes) {
+        items.push({ kind: 'played', notes });
+        redrawStaff('bottom');
+      },
+      onLevel(rms) {
+        levelFill.style.width = `${levelPercent(rms)}%`;
+      },
+      onFailure(message) {
+        stopRecording();
+        showStatus(message);
+      },
+    });
+  } catch (e) {
+    stopRecording();
+    showStatus(e instanceof MicError ? e.message : String(e));
+    return;
+  }
+  showStatus(mic.warning ?? '');
+  recordButton.textContent = 'Stop';
+  recordButton.disabled = false;
+  levelMeter.hidden = false;
+}
+
+recordButton.addEventListener('click', () => {
+  if (mic) {
+    stopRecording();
+  } else {
+    void startRecording();
+  }
+});
+el('level-threshold').style.left = `${levelPercent(SILENCE_RMS_THRESHOLD)}%`;
 
 bindToggle('holes-toggle', 'showHoles');
 bindToggle('letters-toggle', 'showLetters');

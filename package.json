@@ -9,12 +9,14 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "vexflow": "4.2.5"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.0",
     "typescript": "^7.0.2",
     "vite": "^8.3.6",
     "vitest": "^4.1.12"

@@ -7,7 +7,7 @@ import type { DetectedNote } from './pitchDetector';
  * another doesn't suppress either of them.
  */
 export class NoteStabilizer {
-  private committedSignature = '';
+  private sounding = new Set<string>();
   private previousNames = new Set<string>();
 
   /** Returns the newly committed notes, or null if nothing new started sounding on this hop. */
@@ -15,11 +15,10 @@ export class NoteStabilizer {
     const notes = rawNotes.filter((n) => this.previousNames.has(n.name));
     this.previousNames = new Set(rawNotes.map((n) => n.name));
 
-    const signature = notes.map((n) => n.name).join('+');
-    if (signature === this.committedSignature) {
-      return null;
-    }
-    this.committedSignature = signature;
-    return signature === '' ? null : notes;
+    // Only a note that wasn't already sounding counts. Without this, the notes of a chord fading
+    // unevenly would each be recorded again as if they'd just been played.
+    const hasNewNote = notes.some((n) => !this.sounding.has(n.name));
+    this.sounding = new Set(notes.map((n) => n.name));
+    return hasNewNote ? notes : null;
   }
 }

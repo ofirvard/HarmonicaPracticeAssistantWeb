@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Bend, HARMONICA_KEYS, Harmonica, holeString, keyByName } from './harmonica';
+import { Bend, HARMONICA_KEYS, Harmonica, keyByName } from './harmonica';
 import { noteToFrequency } from './notes';
 
 const C_HARP: Record<number, string> = {
@@ -9,10 +9,6 @@ const C_HARP: Record<number, string> = {
 };
 
 const cHarp = new Harmonica(keyByName('C')!);
-
-function closestString(freq: number): string {
-  return holeString(cHarp.closestHole(freq)!);
-}
 
 describe('Harmonica', () => {
   it('C harp unbent holes match the Richter layout', () => {
@@ -51,26 +47,6 @@ describe('Harmonica', () => {
     expect(cHarp.find(-3, Bend.STEP_AND_A_HALF)!.noteName).toBe('G#4');
     expect(cHarp.find(4, Bend.HALF_STEP)).toBeNull();
   });
-
-  it('closestHole finds unbent and bent notes', () => {
-    expect(closestString(noteToFrequency('C', 5))).toBe('4');
-    expect(closestString(noteToFrequency('D', 5))).toBe('-4');
-    expect(closestString(noteToFrequency('A#', 4))).toBe("-3'");
-    expect(closestString(noteToFrequency('G#', 4))).toBe('-3"\'');
-    expect(closestString(noteToFrequency('A#', 6))).toBe('10"');
-  });
-
-  it('closestHole tolerates slight detuning', () => {
-    const a5 = noteToFrequency('A', 5);
-    expect(closestString(a5 * 2 ** (15 / 1200))).toBe('-6');
-    expect(closestString(a5 * 2 ** (-15 / 1200))).toBe('-6');
-  });
-
-  it('closestHole returns null for unplayable notes', () => {
-    expect(cHarp.closestHole(noteToFrequency('D#', 5))).toBeNull();
-    expect(cHarp.closestHole(100)).toBeNull();
-    expect(cHarp.closestHole(5000)).toBeNull();
-  });
 });
 
 describe('holeLabel', () => {
@@ -82,12 +58,25 @@ describe('holeLabel', () => {
     },
   );
 
-  it('labels every other note with a single hole', () => {
+  it('labels unbent and bent notes with a single hole', () => {
     expect(cHarp.holeLabel(noteToFrequency('C', 5))).toBe('4');
+    expect(cHarp.holeLabel(noteToFrequency('D', 5))).toBe('-4');
     expect(cHarp.holeLabel(noteToFrequency('A#', 4))).toBe("-3'");
+    expect(cHarp.holeLabel(noteToFrequency('G#', 4))).toBe('-3"\'');
+    expect(cHarp.holeLabel(noteToFrequency('A#', 6))).toBe('10"');
   });
 
-  it('returns null for unplayable notes', () => {
+  it('agrees with the note name however far off pitch, as a bend usually is', () => {
+    const a4 = noteToFrequency('A', 4);
+    for (const cents of [-45, -30, -15, 0, 15, 30, 45]) {
+      expect(cHarp.holeLabel(a4 * 2 ** (cents / 1200)), `${cents} cents`).toBe('-3"');
+    }
+  });
+
+  it('returns null for notes this harmonica cannot play', () => {
+    // D#5 is the one chromatic note missing from the middle octave without overblows.
     expect(cHarp.holeLabel(noteToFrequency('D#', 5))).toBeNull();
+    expect(cHarp.holeLabel(100)).toBeNull();
+    expect(cHarp.holeLabel(5000)).toBeNull();
   });
 });

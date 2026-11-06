@@ -44,4 +44,23 @@ describe('NoteStabilizer', () => {
     expect(committed(s.push(hop('C4', 'E4')))).toEqual(['C4']);
     expect(committed(s.push(hop('C4', 'E4')))).toEqual(['C4', 'E4']);
   });
+
+  it('does not treat what is left of a fading chord as a new note', () => {
+    const s = new NoteStabilizer();
+    s.push(hop('C5', 'E5', 'G5'));
+    expect(committed(s.push(hop('C5', 'E5', 'G5')))).toEqual(['C5', 'E5', 'G5']);
+    expect(s.push(hop('C5', 'G5'))).toBeNull();
+    expect(s.push(hop('C5'))).toBeNull();
+    expect(s.push(hop())).toBeNull();
+  });
+
+  it('commits a note added back to a chord that had thinned out', () => {
+    const s = new NoteStabilizer();
+    s.push(hop('C5', 'E5'));
+    s.push(hop('C5', 'E5'));
+    s.push(hop('C5'));
+    s.push(hop('C5'));
+    s.push(hop('C5', 'E5'));
+    expect(committed(s.push(hop('C5', 'E5')))).toEqual(['C5', 'E5']);
+  });
 });

@@ -2,3 +2,5 @@ node_modules/
 dist/
 *.log
 .idea/
+test-results/
+playwright-report/

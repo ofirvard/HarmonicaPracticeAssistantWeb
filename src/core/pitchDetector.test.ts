@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { Bend, HARMONICA_KEYS, Harmonica } from './harmonica';
 import { noteToFrequency as freq } from './notes';
 import { PitchDetector } from './pitchDetector';
 
@@ -71,6 +72,88 @@ describe.each([44100, 48000])('PitchDetector at %d Hz', (sampleRate) => {
     expect(Math.abs(detector.lastRms - 0.5 / Math.sqrt(2))).toBeLessThan(0.01);
     detector.detect(new Float64Array(FFT_SIZE));
     expect(detector.lastRms).toBe(0);
+  });
+
+  it('reports a note once when two peaks round to the same name, keeping the louder', () => {
+    const c7 = freq('C', 7);
+    const louder = c7 * 2 ** (30 / 1200);
+    const notes = detector.detect(tone(c7 * 2 ** (-30 / 1200), 0.2, louder, 0.5));
+    expect(notes.map((n) => n.name)).toEqual(['C7']);
+    expect(Math.abs(notes[0]!.frequencyHz - louder)).toBeLessThan(3);
+  });
+
+  // A bent note can put most of its energy in its overtones, as the partials here do.
+  const weakFundamental = (f0: number, level = 0.3) =>
+    tone(f0, 0.2 * level, 2 * f0, 0.2, 3 * f0, 0.16, 4 * f0, 0.12, 5 * f0, 0.08);
+
+  it('hears a weak fundamental as one note, not a chord of its overtones', () => {
+    expect(names(weakFundamental(freq('A', 4)))).toEqual(['A4']);
+    expect(names(weakFundamental(freq('A', 4), 0.1))).toEqual(['A4']);
+  });
+
+  it('finds the weak fundamental of every bend on a C harp', () => {
+    const bends: Array<[string, number]> = [
+      ['C#', 4], ['F#', 4], ['F', 4], ['A#', 4], ['A', 4], ['G#', 4], ['C#', 5], ['G#', 5],
+    ];
+    for (const [name, octave] of bends) {
+      expect(names(weakFundamental(freq(name, octave)))).toEqual([`${name}${octave}`]);
+    }
+  });
+
+  it('finds a bend whose only loud overtone is its octave or twelfth', () => {
+    const harp = new Harmonica(HARMONICA_KEYS[0]!);
+    const bends = [
+      harp.find(-1, Bend.HALF_STEP)!,
+      harp.find(-2, Bend.HALF_STEP)!,
+      harp.find(-2, Bend.WHOLE_STEP)!,
+      harp.find(-3, Bend.HALF_STEP)!,
+      harp.find(-3, Bend.WHOLE_STEP)!,
+      harp.find(-3, Bend.STEP_AND_A_HALF)!,
+      harp.find(-4, Bend.HALF_STEP)!,
+      harp.find(-6, Bend.HALF_STEP)!,
+    ];
+    for (const { frequencyHz: f0, noteName } of bends) {
+      for (const level of [0.2, 0.4]) {
+        expect(names(tone(f0, 0.3 * level, 2 * f0, 0.3, 3 * f0, 0.03)), noteName).toEqual([noteName]);
+        expect(names(tone(f0, 0.3 * level, 3 * f0, 0.3)), noteName).toEqual([noteName]);
+      }
+    }
+  });
+
+  it('does not drop a clean note an octave for a faint peak below it', () => {
+    const c6 = freq('C', 6);
+    expect(names(tone(c6, 0.3, c6 / 2, 0.03))).toEqual(['C6']);
+  });
+
+  it('keeps a real chord whose notes line up as overtones of a silent lower pitch', () => {
+    // Blow 7-8-9 is close to harmonics 4, 5 and 6 of C4, but nothing is sounding at C4.
+    const chord = [freq('C', 6), 0.3, freq('E', 6), 0.3, freq('G', 6), 0.3];
+    expect(names(tone(...chord))).toEqual(['C6', 'E6', 'G6']);
+    expect(names(tone(...chord, freq('C', 4), 0.006))).toEqual(['C6', 'E6', 'G6']);
+  });
+
+  it('detects every two and three hole chord in every key', () => {
+    const partials = [1, 0.7, 0.5, 0.3, 0.2];
+    const wrong: string[] = [];
+    for (const key of HARMONICA_KEYS) {
+      const harp = new Harmonica(key);
+      for (const sign of [1, -1]) {
+        for (const size of [2, 3]) {
+          for (let hole = 1; hole + size - 1 <= 10; hole++) {
+            const holes = Array.from({ length: size }, (_, i) => harp.find(sign * (hole + i))!);
+            const pairs = holes.flatMap((h) =>
+              partials.flatMap((a, k) => [h.frequencyHz * (k + 1), (0.3 / size) * a]),
+            );
+            const want = holes.map((h) => h.noteName).sort().join('+');
+            const got = names(tone(...pairs)).sort().join('+');
+            if (got !== want) {
+              wrong.push(`${key.name}: want ${want}, got ${got}`);
+            }
+          }
+        }
+      }
+    }
+    expect(wrong).toEqual([]);
   });
 
   it('ignores frequencies outside the musical range', () => {

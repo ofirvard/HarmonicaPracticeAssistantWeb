@@ -87,9 +87,6 @@ const TUNING: ReadonlyArray<readonly [number, Bend, number]> = [
   [-10, Bend.NONE, 21],
 ];
 
-// A detected frequency must be within this fraction of a hole's frequency to match it.
-const MATCH_TOLERANCE = 0.015;
-
 /** Whether this hole and bend exist on a Richter harmonica. The layout is the same in every key. */
 export function isPlayable(number: number, bend: Bend): boolean {
   return TUNING.some(([n, b]) => n === number && b === bend);
@@ -113,33 +110,16 @@ export class Harmonica {
     return this.holes.find((h) => h.number === number && h.bend === bend) ?? null;
   }
 
-  /** The hole whose frequency is closest to freqHz, or null if none is within tolerance. */
-  closestHole(freqHz: number): HarmonicaHole | null {
-    let closest: HarmonicaHole | null = null;
-    for (const hole of this.holes) {
-      if (!closest || Math.abs(hole.frequencyHz - freqHz) < Math.abs(closest.frequencyHz - freqHz)) {
-        closest = hole;
-      }
-    }
-    if (!closest || Math.abs(closest.frequencyHz - freqHz) > closest.frequencyHz * MATCH_TOLERANCE) {
-      return null;
-    }
-    return closest;
-  }
-
   /**
-   * The tab label for a detected frequency, or null if no hole matches. Blow 3 and draw 2 are the
-   * same pitch on every Richter harmonica, so sound alone can't tell which was played: that note
-   * is labelled with both ("3/-2") rather than guessing.
+   * The tab label for a detected frequency, or null if this harmonica can't play that note. Goes
+   * by note name so the label always agrees with the name shown beside it: a bend often sits
+   * between two semitones and still has to be labelled. Blow 3 and draw 2 are the same pitch on
+   * every Richter harmonica, so sound alone can't tell which was played, and that note is
+   * labelled with both ("3/-2") rather than guessing.
    */
   holeLabel(freqHz: number): string | null {
-    const closest = this.closestHole(freqHz);
-    if (!closest) {
-      return null;
-    }
-    return this.holes
-      .filter((h) => h.noteName === closest.noteName)
-      .map(holeString)
-      .join('/');
+    const noteName = frequencyToNote(freqHz);
+    const matches = this.holes.filter((h) => h.noteName === noteName);
+    return matches.length > 0 ? matches.map(holeString).join('/') : null;
   }
 }

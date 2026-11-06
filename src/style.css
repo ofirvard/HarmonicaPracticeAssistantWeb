@@ -139,6 +139,31 @@ button[aria-pressed='true'] {
   padding: 10px;
 }
 
+#level {
+  position: relative;
+  align-self: center;
+  width: 140px;
+  height: 10px;
+  margin-right: auto;
+  overflow: hidden;
+  background: var(--control);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+
+#level-fill {
+  width: 0;
+  height: 100%;
+  background: #39ff88;
+}
+
+#level-threshold {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 2px;
+  background: var(--text);
+}
+
 #status {
   margin: 0;
   padding: 0 10px;

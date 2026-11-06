@@ -13,7 +13,7 @@ interface Peak {
 
 const MIN_FREQ = 27.5; // A0
 const MAX_FREQ = 4200; // just above C8
-const SILENCE_RMS_THRESHOLD = 0.015;
+export const SILENCE_RMS_THRESHOLD = 0.015;
 const PEAK_RELATIVE_THRESHOLD = 0.32; // fraction of the loudest bin
 const MAX_NOTES = 6;
 const MAX_HARMONIC = 8;
@@ -22,6 +22,16 @@ const HARMONIC_TOLERANCE_CENTS = 45;
 // it's at least this loud relative to that fundamental. Otherwise incidental low-level noise near
 // an exact octave or fifth below a correctly detected note keeps flipping it down.
 const SUBHARMONIC_REPLACE_MIN_RATIO = 0.5;
+// A bent note can put so much energy into its overtones that its fundamental falls below
+// PEAK_RELATIVE_THRESHOLD. Such a quiet peak is only used to explain louder peaks as its harmonics.
+const WEAK_FUNDAMENTAL_THRESHOLD = 0.05; // fraction of the loudest bin
+const WEAK_FUNDAMENTAL_MIN_HARMONICS = 2;
+// One overtone is weaker evidence than two, as a stray noise peak could sit below any clean note,
+// so the quiet fundamental has to be this loud relative to that overtone.
+const SINGLE_OVERTONE_MIN_RATIO = 0.15;
+const SINGLE_OVERTONE_MAX_HARMONIC = 3;
+const WEAK_FUNDAMENTAL_TOLERANCE_CENTS = 30;
+const LOWEST_HARMONICA_NOTE = 190; // just below G3, hole 1 blow on the lowest supported key
 
 function centsBetween(freq: number, expected: number): number {
   return 1200 * Math.log2(freq / expected);
@@ -48,6 +58,47 @@ function indexOfHarmonicOf(freq: number, fundamentals: Peak[]): number {
     }
     return false;
   });
+}
+
+/** Whether these accepted notes, all harmonics of the quiet candidate, are really its overtones. */
+function areOvertonesOf(candidate: Peak, harmonics: Peak[]): boolean {
+  if (harmonics.length >= WEAK_FUNDAMENTAL_MIN_HARMONICS) {
+    return true;
+  }
+  const [only] = harmonics;
+  return (
+    only !== undefined &&
+    Math.round(only.frequencyHz / candidate.frequencyHz) <= SINGLE_OVERTONE_MAX_HARMONIC &&
+    candidate.magnitude >= SINGLE_OVERTONE_MIN_RATIO * only.magnitude
+  );
+}
+
+function isUpperHarmonic(freq: number, fundamental: number): boolean {
+  const h = Math.round(freq / fundamental);
+  return (
+    h >= 2 &&
+    h <= MAX_HARMONIC &&
+    Math.abs(centsBetween(freq, fundamental * h)) < WEAK_FUNDAMENTAL_TOLERANCE_CENTS
+  );
+}
+
+/**
+ * Replaces accepted notes that are really overtones of a quiet fundamental with that fundamental.
+ * Needs a real peak at the fundamental, not just notes that fit a harmonic series: a chord like
+ * C6+E6+G6 also lines up as harmonics of C4, but nothing is sounding at C4.
+ */
+function absorbIntoWeakFundamentals(fundamentals: Peak[], weakPeaks: Peak[]): Peak[] {
+  let result = fundamentals;
+  for (const candidate of [...weakPeaks].sort((a, b) => b.magnitude - a.magnitude)) {
+    if (candidate.frequencyHz < LOWEST_HARMONICA_NOTE) {
+      continue;
+    }
+    const harmonics = result.filter((f) => isUpperHarmonic(f.frequencyHz, candidate.frequencyHz));
+    if (areOvertonesOf(candidate, harmonics)) {
+      result = [...result.filter((f) => !harmonics.includes(f)), candidate];
+    }
+  }
+  return result;
 }
 
 /**
@@ -110,21 +161,24 @@ export class PitchDetector {
     const minBin = Math.max(1, Math.floor((MIN_FREQ * fftSize) / sampleRate));
     const maxBin = Math.min(half - 2, Math.ceil((MAX_FREQ * fftSize) / sampleRate));
     const threshold = maxMag * PEAK_RELATIVE_THRESHOLD;
+    const weakThreshold = maxMag * WEAK_FUNDAMENTAL_THRESHOLD;
 
     const peaks: Peak[] = [];
+    const weakPeaks: Peak[] = [];
     for (let i = minBin; i <= maxBin; i++) {
       const beta = mag[i]!;
       const alpha = mag[i - 1]!;
       const gamma = mag[i + 1]!;
-      if (beta > threshold && beta > alpha && beta > gamma) {
+      if (beta > weakThreshold && beta > alpha && beta > gamma) {
         const denom = alpha - 2 * beta + gamma;
         const p = denom !== 0 ? (0.5 * (alpha - gamma)) / denom : 0;
-        peaks.push({ frequencyHz: ((i + p) * sampleRate) / fftSize, magnitude: beta });
+        const peak = { frequencyHz: ((i + p) * sampleRate) / fftSize, magnitude: beta };
+        (beta > threshold ? peaks : weakPeaks).push(peak);
       }
     }
     peaks.sort((a, b) => b.magnitude - a.magnitude);
 
-    const fundamentals: Peak[] = [];
+    let fundamentals: Peak[] = [];
     for (const peak of peaks) {
       if (isHarmonicOfKnown(peak.frequencyHz, fundamentals)) {
         continue;
@@ -137,14 +191,26 @@ export class PitchDetector {
         const existing = fundamentals[subharmonicOf]!;
         if (peak.magnitude >= SUBHARMONIC_REPLACE_MIN_RATIO * existing.magnitude) {
           fundamentals[subharmonicOf] = peak;
+        } else {
+          weakPeaks.push(peak);
         }
       } else if (fundamentals.length < MAX_NOTES) {
         fundamentals.push(peak);
       }
     }
 
-    return fundamentals
-      .sort((a, b) => a.frequencyHz - b.frequencyHz)
-      .map((f) => ({ name: frequencyToNote(f.frequencyHz), frequencyHz: f.frequencyHz }));
+    fundamentals = absorbIntoWeakFundamentals(fundamentals, weakPeaks);
+
+    // A note ending partway through the window can split into two peaks that round to the same
+    // name. One note can't sound twice, so keep the louder peak.
+    const loudestByName = new Map<string, Peak>();
+    for (const f of fundamentals.sort((a, b) => a.frequencyHz - b.frequencyHz)) {
+      const name = frequencyToNote(f.frequencyHz);
+      const existing = loudestByName.get(name);
+      if (!existing || f.magnitude > existing.magnitude) {
+        loudestByName.set(name, f);
+      }
+    }
+    return [...loudestByName].map(([name, f]) => ({ name, frequencyHz: f.frequencyHz }));
   }
 }
