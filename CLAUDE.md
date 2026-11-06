@@ -9,7 +9,9 @@ Known bugs and unverified behaviour are in `openbugs.md`. Check it before touchi
 ## Decisions
 
 - Static site with no backend or accounts. Browser storage only for now (see Google Drive below).
-- Desktop only. A phone layout was dropped from scope.
+- Desktop layout first. Phones get a `max-width: 700px` media query at the end of `style.css`: the
+  song list becomes a drawer opened by `#songs-button`, and the splitter is hidden. Keep desktop
+  styles outside that block so the desktop UI stays unchanged.
 - The duplicate blow 3 / draw 2 note is labelled `3/-2`, since sound alone can't tell them apart.
 - Vanilla TypeScript, no UI framework. `vexflow` is pinned to exactly 4.2.5.
 

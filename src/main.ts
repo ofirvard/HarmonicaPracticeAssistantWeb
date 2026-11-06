@@ -70,13 +70,33 @@ function renderSongList(): void {
       button.title = song.name;
       button.className = 'song';
       button.setAttribute('aria-current', String(song.name === activeSong));
-      button.addEventListener('click', () => loadSong(song));
+      button.addEventListener('click', () => {
+        loadSong(song);
+        setSongsOpen(false);
+      });
       const row = document.createElement('li');
       row.append(button);
       return row;
     }),
   );
   el('song-empty').hidden = songs.length > 0;
+}
+
+// Phone layout only: the song list is a drawer. On desktop the button is hidden and this does nothing visible.
+const app = el('app');
+const songsButton = el('songs-button');
+
+function setSongsOpen(open: boolean): void {
+  app.classList.toggle('songs-open', open);
+  songsButton.setAttribute('aria-expanded', String(open));
+}
+
+function bindSongsDrawer(): void {
+  songsButton.addEventListener('click', () => setSongsOpen(!app.classList.contains('songs-open')));
+  el('songs-backdrop').addEventListener('click', () => setSongsOpen(false));
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') setSongsOpen(false);
+  });
 }
 
 function loadSong(song: Song): void {
@@ -263,6 +283,7 @@ bindToggle('holes-toggle', 'showHoles');
 bindToggle('letters-toggle', 'showLetters');
 bindSettings();
 bindSplitter();
+bindSongsDrawer();
 
 el('demo-button').addEventListener('click', () => {
   const demo = DEMO_HOLES.map(
