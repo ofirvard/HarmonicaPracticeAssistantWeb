@@ -83,7 +83,9 @@ npm run build
    `#practice-button` in `index.html`, which is disabled with "Not available yet". Revisit match
    strictness on a real harmonica (bug 4 in `openbugs.md`).
 5. Song library: IndexedDB storage, in-app editor replacing the ✎ button, export.
-6. Deploy to a static host: set Vite `base: './'`.
+6. Deploy: done. `.github/workflows/deploy.yml` publishes to GitHub Pages on every push to `main`.
+   Installable and offline: `public/manifest.webmanifest`, icons in `public/icons/`, and `sw.js`,
+   which a plugin in `vite.config.ts` generates at build time with every built file precached.
 7. **Google Drive integration.** Requested by the user, not designed yet. Presumably saving and
    syncing songs through the user's Drive, which fits the no-backend design. Scope and details need
    confirming with the user. It would change the "browser storage only" decision, so plan it
