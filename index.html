@@ -12,7 +12,10 @@
   <body>
     <div id="app">
       <aside id="sidebar">
-        <h2 id="songs-heading">Songs</h2>
+        <div id="sidebar-header">
+          <h2 id="songs-heading">Songs</h2>
+          <button id="import-button" type="button">Import</button>
+        </div>
         <div id="song-panel">
           <ul id="song-list" aria-labelledby="songs-heading"></ul>
           <p id="song-empty">No songs yet. Use Import to add .txt files.</p>
@@ -51,7 +54,6 @@
           </div>
           <button id="record-button" type="button">Record</button>
           <button id="demo-button" type="button">Demo</button>
-          <button id="import-button" type="button">Import</button>
           <button id="practice-button" type="button" disabled title="Not available yet">Practice</button>
           <button id="clear-button" type="button">Clear</button>
         </div>

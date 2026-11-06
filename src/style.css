@@ -75,9 +75,21 @@ button[aria-pressed='true'] {
   padding: 10px 0 10px 10px;
 }
 
+#sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
 #sidebar h2 {
-  margin: 0 0 6px;
+  margin: 0;
   font-size: 14px;
+}
+
+#import-button {
+  padding: 3px 10px;
 }
 
 #song-panel {
@@ -292,6 +304,10 @@ button[aria-pressed='true'] {
 
   .bar button {
     padding: 6px 9px;
+  }
+
+  #import-button {
+    padding: 6px 12px;
   }
 
   /* Bigger rows are easier to tap. */
