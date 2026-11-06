@@ -1,0 +1,232 @@
+import './style.css';
+import { Bend, HARMONICA_KEYS, Harmonica, keyByName } from './core/harmonica';
+import { parseSong } from './core/songParser';
+import { songToItems, toEntries, type StaffItem } from './core/staff';
+import { DEFAULT_SETTINGS, LIMITS, loadSettings, saveSettings, type Settings } from './settings';
+import { StaffView } from './ui/staffView';
+
+interface Song {
+  name: string;
+  text: string;
+}
+
+const DEMO_HOLES = [4, -4, 5, 6, 5, -4, 4];
+
+function el<T extends HTMLElement>(id: string): T {
+  return document.getElementById(id) as T;
+}
+
+function getStorage(): Storage {
+  try {
+    return window.localStorage;
+  } catch {
+    // Accessing localStorage can itself throw when site data is blocked.
+    return { getItem: () => null, setItem: () => undefined } as unknown as Storage;
+  }
+}
+
+const storage = getStorage();
+const settings = loadSettings(storage);
+let harmonica = new Harmonica(keyByName(settings.keyName)!);
+let items: StaffItem[] = [];
+const songs: Song[] = [];
+let activeSong: string | null = null;
+
+const staffScroller = el('staff-scroller');
+const staffHint = el('staff-hint');
+const staff = new StaffView(staffScroller, el('staff'), settings);
+const statusLine = el('status');
+const songList = el<HTMLUListElement>('song-list');
+const importInput = el<HTMLInputElement>('import-input');
+
+function persist(change: Partial<Settings>): void {
+  Object.assign(settings, change);
+  saveSettings(storage, settings);
+}
+
+function showStatus(message: string): void {
+  statusLine.textContent = message;
+  statusLine.hidden = message === '';
+}
+
+function redrawStaff(scroll: 'top' | 'bottom' | 'keep'): void {
+  staffHint.hidden = items.length > 0;
+  staff.setEntries(toEntries(items, harmonica), scroll);
+}
+
+function renderSongList(): void {
+  songList.replaceChildren(
+    ...songs.map((song) => {
+      const button = document.createElement('button');
+      button.textContent = song.name;
+      button.title = song.name;
+      button.className = 'song';
+      button.setAttribute('aria-current', String(song.name === activeSong));
+      button.addEventListener('click', () => loadSong(song));
+      const row = document.createElement('li');
+      row.append(button);
+      return row;
+    }),
+  );
+  el('song-empty').hidden = songs.length > 0;
+}
+
+function loadSong(song: Song): void {
+  const lines = parseSong(song.text);
+  if (lines.length === 0) {
+    showStatus(`No hole numbers found in ${song.name}.`);
+    return;
+  }
+  showStatus('');
+  activeSong = song.name;
+  items = songToItems(lines);
+  redrawStaff('top');
+  renderSongList();
+}
+
+async function importFiles(files: File[]): Promise<void> {
+  let imported: Song | null = null;
+  for (const file of files) {
+    try {
+      imported = { name: file.name, text: await file.text() };
+    } catch (e) {
+      showStatus(`Could not read ${file.name}: ${e instanceof Error ? e.message : e}`);
+      continue;
+    }
+    const existing = songs.findIndex((s) => s.name === file.name);
+    if (existing >= 0) {
+      songs[existing] = imported;
+    } else {
+      songs.push(imported);
+    }
+  }
+  songs.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+  renderSongList();
+  if (imported) {
+    loadSong(imported);
+  }
+}
+
+function setToggle(button: HTMLElement, on: boolean): void {
+  button.setAttribute('aria-pressed', String(on));
+}
+
+function bindToggle(id: string, field: 'showHoles' | 'showLetters'): void {
+  const button = el(id);
+  setToggle(button, settings[field]);
+  button.addEventListener('click', () => {
+    persist({ [field]: !settings[field] });
+    setToggle(button, settings[field]);
+    staff.setOptions(settings);
+  });
+}
+
+const sliders = [
+  { field: 'spacing', format: (v: number) => String(v) },
+  { field: 'noteScale', format: (v: number) => `${v.toFixed(1)}x` },
+  { field: 'annotationSize', format: (v: number) => String(v) },
+] as const;
+
+function syncSettingsForm(): void {
+  el<HTMLSelectElement>('key-select').value = settings.keyName;
+  for (const { field, format } of sliders) {
+    el<HTMLInputElement>(`${field}-input`).value = String(settings[field]);
+    el(`${field}-value`).textContent = format(settings[field]);
+  }
+}
+
+function bindSettings(): void {
+  const keySelect = el<HTMLSelectElement>('key-select');
+  keySelect.append(...HARMONICA_KEYS.map((k) => new Option(k.name, k.name)));
+  keySelect.addEventListener('change', () => setKey(keySelect.value));
+
+  for (const { field, format } of sliders) {
+    const input = el<HTMLInputElement>(`${field}-input`);
+    input.min = String(LIMITS[field].min);
+    input.max = String(LIMITS[field].max);
+    input.addEventListener('input', () => {
+      persist({ [field]: Number(input.value) });
+      el(`${field}-value`).textContent = format(settings[field]);
+      staff.setOptions(settings);
+    });
+  }
+
+  el('settings-default').addEventListener('click', () => {
+    const { spacing, noteScale, annotationSize, keyName } = DEFAULT_SETTINGS;
+    persist({ spacing, noteScale, annotationSize });
+    setKey(keyName);
+    staff.setOptions(settings);
+    syncSettingsForm();
+  });
+  syncSettingsForm();
+}
+
+function setKey(keyName: string): void {
+  persist({ keyName });
+  harmonica = new Harmonica(keyByName(keyName)!);
+  redrawStaff('keep');
+}
+
+function setSidebarWidth(width: number): void {
+  const { min, max } = LIMITS.sidebarWidth;
+  const limit = Math.min(max, window.innerWidth / 2);
+  const clamped = Math.round(Math.min(limit, Math.max(min, width)));
+  document.documentElement.style.setProperty('--sidebar-width', `${clamped}px`);
+  persist({ sidebarWidth: clamped });
+}
+
+function bindSplitter(): void {
+  const splitter = el('splitter');
+  splitter.addEventListener('pointerdown', (event) => {
+    splitter.setPointerCapture(event.pointerId);
+  });
+  splitter.addEventListener('pointermove', (event) => {
+    if (splitter.hasPointerCapture(event.pointerId)) {
+      setSidebarWidth(event.clientX);
+    }
+  });
+  splitter.addEventListener('keydown', (event) => {
+    const delta = { ArrowLeft: -20, ArrowRight: 20 }[event.key];
+    if (delta) {
+      event.preventDefault();
+      setSidebarWidth(settings.sidebarWidth + delta);
+    }
+  });
+  document.documentElement.style.setProperty('--sidebar-width', `${settings.sidebarWidth}px`);
+}
+
+bindToggle('holes-toggle', 'showHoles');
+bindToggle('letters-toggle', 'showLetters');
+bindSettings();
+bindSplitter();
+
+el('demo-button').addEventListener('click', () => {
+  const demo = DEMO_HOLES.map(
+    (number, i): StaffItem => ({
+      kind: 'hole',
+      hole: { number, bend: Bend.NONE },
+      word: '',
+      endLine: i === DEMO_HOLES.length - 1,
+    }),
+  );
+  items = [...items, ...demo];
+  redrawStaff('bottom');
+});
+
+el('import-button').addEventListener('click', () => importInput.click());
+importInput.addEventListener('change', () => {
+  const files = [...(importInput.files ?? [])];
+  importInput.value = ''; // so choosing the same file again still fires change
+  void importFiles(files);
+});
+
+el('clear-button').addEventListener('click', () => {
+  items = [];
+  activeSong = null;
+  showStatus('');
+  redrawStaff('top');
+  renderSongList();
+});
+
+renderSongList();
+redrawStaff('top');

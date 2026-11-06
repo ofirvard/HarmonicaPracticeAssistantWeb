@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Harmonica Practice Assistant</title>
+    <link rel="icon" href="data:," />
+  </head>
+  <body>
+    <div id="app">
+      <aside id="sidebar">
+        <h2 id="songs-heading">Songs</h2>
+        <div id="song-panel">
+          <ul id="song-list" aria-labelledby="songs-heading"></ul>
+          <p id="song-empty">No songs yet. Use Import to add .txt files.</p>
+        </div>
+      </aside>
+
+      <div
+        id="splitter"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize song list"
+        tabindex="0"
+      ></div>
+
+      <main id="main">
+        <div class="bar">
+          <button id="holes-toggle" type="button">Holes</button>
+          <button id="letters-toggle" type="button">Notes</button>
+          <button type="button" popovertarget="settings" aria-label="Settings">⚙</button>
+        </div>
+
+        <p id="status" role="alert" hidden></p>
+
+        <div id="staff-scroller">
+          <div id="staff"></div>
+          <div id="staff-hint">Press Demo or import a song to see it on the staff.</div>
+        </div>
+
+        <div class="bar">
+          <button id="record-button" type="button" disabled title="Not available yet">Record</button>
+          <button id="demo-button" type="button">Demo</button>
+          <button id="import-button" type="button">Import</button>
+          <button id="practice-button" type="button" disabled title="Not available yet">Practice</button>
+          <button id="clear-button" type="button">Clear</button>
+        </div>
+      </main>
+    </div>
+
+    <div id="settings" popover>
+      <label class="setting">
+        <span>Key</span>
+        <select id="key-select"></select>
+      </label>
+      <label class="setting">
+        <span>Spacing</span>
+        <input id="spacing-input" type="range" step="1" />
+        <output id="spacing-value"></output>
+      </label>
+      <label class="setting">
+        <span>Note size</span>
+        <input id="noteScale-input" type="range" step="0.1" />
+        <output id="noteScale-value"></output>
+      </label>
+      <label class="setting">
+        <span>Holes/Notes size</span>
+        <input id="annotationSize-input" type="range" step="1" />
+        <output id="annotationSize-value"></output>
+      </label>
+      <div id="settings-actions">
+        <button id="settings-default" type="button">Default</button>
+      </div>
+    </div>
+
+    <input id="import-input" type="file" accept=".txt,text/plain" multiple hidden />
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
