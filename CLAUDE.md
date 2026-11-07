@@ -89,7 +89,8 @@ npm run build
    `#practice-button` in `index.html`, which is disabled with "Not available yet". Revisit match
    strictness on a real harmonica (bug 4 in `openbugs.md`).
 5. Song library: IndexedDB storage, in-app editor replacing the ✎ button, export.
-6. Deploy: done. `.github/workflows/deploy.yml` publishes to GitHub Pages on every push to `main`.
+6. Deploy: done. `.github/workflows/deploy.yml` publishes to GitHub Pages when run by hand (Actions
+   tab or `gh workflow run deploy.yml`), not on push. Deploy only when the user asks.
    Installable and offline: `public/manifest.webmanifest`, icons in `public/icons/`, and `sw.js`,
    which a plugin in `vite.config.ts` generates at build time with every built file precached.
 7. **Google Drive integration.** Requested by the user, not designed yet. Presumably saving and
