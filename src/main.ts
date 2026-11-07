@@ -3,6 +3,7 @@ import { startListening } from './audio/listener';
 import { MicError, type MicSession } from './audio/mic';
 import { Bend, HARMONICA_KEYS, Harmonica, keyByName } from './core/harmonica';
 import { SILENCE_RMS_THRESHOLD } from './core/pitchDetector';
+import { RecentAudio } from './core/recentAudio';
 import { parseSong } from './core/songParser';
 import { songToItems, toEntries, type StaffItem } from './core/staff';
 import { DEFAULT_SETTINGS, LIMITS, loadSettings, saveSettings, type Settings } from './settings';
@@ -230,6 +231,32 @@ function levelPercent(rms: number): number {
 }
 
 let mic: MicSession | null = null;
+// The last stretch of mic audio, saved from Settings so a misread note can be sent in as a test case.
+const RECENT_AUDIO_SECONDS = 20;
+let recentAudio = new RecentAudio(RECENT_AUDIO_SECONDS);
+const saveAudioButton = el<HTMLButtonElement>('save-audio');
+
+async function saveRecentAudio(): Promise<void> {
+  const stamp = new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-');
+  const file = new File([recentAudio.toWav()], `harmonica-${harmonica.key.name}-${stamp}.wav`, {
+    type: 'audio/wav',
+  });
+  // On phones, the share sheet can send the file straight to a chat or Drive.
+  if (navigator.canShare?.({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: file.name });
+      return;
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') return; // closed the share sheet
+    }
+  }
+  const url = URL.createObjectURL(file);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = file.name;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}
 const recordButton = el<HTMLButtonElement>('record-button');
 const levelMeter = el('level');
 const levelFill = el('level-fill');
@@ -245,8 +272,16 @@ function stopRecording(): void {
 async function startRecording(): Promise<void> {
   recordButton.disabled = true;
   showStatus('');
+  recentAudio = new RecentAudio(RECENT_AUDIO_SECONDS);
   try {
     mic = await startListening({
+      onAudio(samples, sampleRate) {
+        recentAudio.push(samples, sampleRate);
+        if (saveAudioButton.disabled) {
+          saveAudioButton.disabled = false;
+          saveAudioButton.title = 'Saves the end of the latest recording as a WAV file';
+        }
+      },
       onNotes(notes) {
         items.push({ kind: 'played', notes });
         redrawStaff('bottom');
@@ -277,6 +312,7 @@ recordButton.addEventListener('click', () => {
     void startRecording();
   }
 });
+saveAudioButton.addEventListener('click', () => void saveRecentAudio());
 el('level-threshold').style.left = `${levelPercent(SILENCE_RMS_THRESHOLD)}%`;
 
 bindToggle('holes-toggle', 'showHoles');

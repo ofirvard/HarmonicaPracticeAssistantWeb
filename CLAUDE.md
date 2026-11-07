@@ -35,6 +35,8 @@ npm run build
 - `src/audio/`: `mic.ts` (`openMic`, friendly errors), `listener.ts` (`startListening`, reusable by
   Practice).
 - `src/ui/staffView.ts`: VexFlow drawing. `setPracticeIndex` is ready for Practice.
+- `src/core/recentAudio.ts`: ring buffer of the last 20 s of mic audio and a WAV encoder, for
+  Settings → "Save last 20 s of audio".
 - `src/settings.ts`: validated settings in localStorage.
 - `src/main.ts`: app wiring. The song list is in memory only.
 - `public/hop-processor.js`: AudioWorklet. Lives in `public` so it isn't bundled.
@@ -93,4 +95,4 @@ npm run build
    confirming with the user. It would change the "browser storage only" decision, so plan it
    alongside phase 5's storage layer.
 
-Also possible: a "save last 5 seconds of audio" button for capturing real failing bends.
+Real failing audio: Settings → "Save last 20 s of audio" (built). Ask for a WAV before tuning.

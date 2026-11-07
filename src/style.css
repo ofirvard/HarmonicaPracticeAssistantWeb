@@ -253,10 +253,13 @@ button[aria-pressed='true']:hover:not(:disabled) {
 
 #settings-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
+  gap: 10px;
 }
 
-#settings-default {
+#settings-default,
+#save-audio {
   background: var(--bg);
 }
 

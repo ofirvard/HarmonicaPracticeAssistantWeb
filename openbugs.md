@@ -7,7 +7,22 @@ Known problems and unverified behaviour. Roadmap items live in `CLAUDE.md`.
 Everything about bends so far was reproduced and fixed against simulated audio only. Simulations
 have already missed real failures twice, so none of these count as fixed until tried on a harp.
 
-### Draw 4 bend showed `–` (fix awaiting retest)
+### Draw 5 misread on a phone (needs a recording)
+
+- **Reported:** on Android, with the key set to C, draw 5 gave `5` (E5), `5+–` (E5+G#7) and `–` (A3)
+  instead of `-5` (F5). Screenshot only, no audio yet.
+- **Reading the symptoms:** all three fit one sound near E5. A3 is a third of E5 (220 Hz), so a
+  quiet low peak (breath or handling rumble) was probably taken as the fundamental, with E5 as its
+  3rd harmonic. The single-overtone rule added for the draw 4 bend (`SINGLE_OVERTONE_MIN_RATIO`,
+  harmonics up to `SINGLE_OVERTONE_MAX_HARMONIC = 3`) allows exactly that, and `LOWEST_HARMONICA_NOTE`
+  (190 Hz) is key-independent, so A3 passes even though a C harp's lowest note is C4. G#7 is E5's 5th
+  harmonic reported as a second note. E5 rather than F5 suggests draw 5 played flat (draw 5 bends
+  toward the blow reed's E5) or the blow reed sounding.
+- **Next:** get a WAV with Settings → "Save last 20 s of audio", note exactly what was played, and
+  use it as a fixture before changing thresholds. Draw 4 bend was confirmed fixed on a real harp in
+  the same session, so any change must keep it working.
+
+### Draw 4 bend showed `–` (confirmed fixed on a real harp)
 
 - **Reported:** bending draw 4 wrote just `–`.
 - **Likely cause:** the fundamental was quiet and only its octave was loud, so the octave was
@@ -18,7 +33,8 @@ have already missed real failures twice, so none of these count as fixed until t
   with one loud overtone (2nd or 3rd harmonic), if it is at least 15% as loud as that overtone.
 - **Still fails:** a fundamental under 15% of its overtone still shows `–`. 15% was picked by
   measurement: at 8%, 74 of 960 clean notes dropped an octave under heavy breath; at 15%, 0 did.
-- **Retest:** `-4'` and other bends. If it fails, note the letters and the harp key. C#6 means a very
+- **Confirmed:** `-4'` read correctly on a real harmonica (Android phone, 2026-11-07).
+- **Retest:** other bends. If it fails, note the letters and the harp key. C#6 means a very
   quiet fundamental; anything else is a different cause. Also check the key selected in the app
   matches the harp.
 
@@ -73,7 +89,8 @@ Deliberately left until Practice is ported and can be tried on a real harmonica.
 - Dev server file watching with edits made from IntelliJ on `/mnt/c` (polling is on, but it hasn't
   been confirmed by the user).
 
-## Debugging idea
+## Capturing real failures
 
-If bends keep failing on a real harp, stop tuning against simulations. Add a "save last 5 seconds of
-audio" button so a real failing bend can be captured, then use the WAV as a test fixture.
+Settings → "Save last 20 s of audio" saves the end of the latest recording as a WAV (shared on
+phones, downloaded on desktop), named with the harp key. Use it as a test fixture rather than
+tuning against simulations.
