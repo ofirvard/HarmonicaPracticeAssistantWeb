@@ -49,7 +49,9 @@ npm run build
   `await` in the click handler.
 - **Detection:** Hann window, parabolic peak interpolation, harmonic and subharmonic rejection, RMS
   silence threshold 0.015, peak threshold 0.32. Weak fundamentals absorb their overtones, because
-  bends put most energy in overtones.
+  bends put most energy in overtones. When recording, the detector gets the selected harp's range
+  (`Harmonica.range`, ±50 cents) and never reports a note outside it; out-of-range peaks only count
+  as overtones. Without a range (as in most unit tests) the old behaviour applies.
 - **Stabilizer:** a note must appear in two consecutive hops, and only a note not already sounding
   commits an entry.
 - **Staff:** always derived from key-independent `StaffItem`s through `toEntries(items, harmonica)`,

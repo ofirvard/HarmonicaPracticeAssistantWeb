@@ -1,4 +1,5 @@
 import { fft } from './fft';
+import type { FrequencyRange } from './harmonica';
 import { frequencyToNote } from './notes';
 
 export interface DetectedNote {
@@ -32,6 +33,9 @@ const SINGLE_OVERTONE_MIN_RATIO = 0.15;
 const SINGLE_OVERTONE_MAX_HARMONIC = 3;
 const WEAK_FUNDAMENTAL_TOLERANCE_CENTS = 30;
 const LOWEST_HARMONICA_NOTE = 190; // just below G3, hole 1 blow on the lowest supported key
+// With a harp's range set, a note this far beyond its lowest or highest note still counts, so a
+// slightly flat bottom note or sharp top note isn't lost. Half a semitone, the naming boundary.
+const RANGE_MARGIN = 2 ** (50 / 1200);
 
 function centsBetween(freq: number, expected: number): number {
   return 1200 * Math.log2(freq / expected);
@@ -87,10 +91,14 @@ function isUpperHarmonic(freq: number, fundamental: number): boolean {
  * Needs a real peak at the fundamental, not just notes that fit a harmonic series: a chord like
  * C6+E6+G6 also lines up as harmonics of C4, but nothing is sounding at C4.
  */
-function absorbIntoWeakFundamentals(fundamentals: Peak[], weakPeaks: Peak[]): Peak[] {
+function absorbIntoWeakFundamentals(
+  fundamentals: Peak[],
+  weakPeaks: Peak[],
+  canBeNote: (freq: number) => boolean,
+): Peak[] {
   let result = fundamentals;
   for (const candidate of [...weakPeaks].sort((a, b) => b.magnitude - a.magnitude)) {
-    if (candidate.frequencyHz < LOWEST_HARMONICA_NOTE) {
+    if (!canBeNote(candidate.frequencyHz)) {
       continue;
     }
     const harmonics = result.filter((f) => isUpperHarmonic(f.frequencyHz, candidate.frequencyHz));
@@ -111,6 +119,7 @@ export class PitchDetector {
   private readonly re: Float64Array;
   private readonly im: Float64Array;
   private rms = 0;
+  private range: FrequencyRange | null = null;
 
   constructor(
     private readonly fftSize: number,
@@ -122,6 +131,23 @@ export class PitchDetector {
     }
     this.re = new Float64Array(fftSize);
     this.im = new Float64Array(fftSize);
+  }
+
+  /**
+   * Limits notes to what the selected harp can play. A sound outside the range still claims its
+   * own overtones, so a low hum doesn't show up as its octave, but it is never reported, never
+   * replaces a note as its "true" lower fundamental, and never absorbs a note as one of its overtones. That stops a low rumble a twelfth below a note
+   * from replacing it, and a high overtone from showing up as a second note.
+   */
+  setRange(range: FrequencyRange | null): void {
+    this.range = range;
+  }
+
+  private canBeNote(freq: number): boolean {
+    if (!this.range) {
+      return freq >= LOWEST_HARMONICA_NOTE;
+    }
+    return freq >= this.range.minHz / RANGE_MARGIN && freq <= this.range.maxHz * RANGE_MARGIN;
   }
 
   /** RMS level (roughly [0, 1]) measured by the most recent call to detect. */
@@ -184,6 +210,10 @@ export class PitchDetector {
         continue;
       }
       const subharmonicOf = indexOfHarmonicOf(peak.frequencyHz, fundamentals);
+      if (subharmonicOf >= 0 && this.range && !this.canBeNote(peak.frequencyHz)) {
+        // Something the harp can't play, such as rumble a twelfth below, is never the real note.
+        continue;
+      }
       if (subharmonicOf >= 0) {
         // An accepted "fundamental" is really one of this peak's harmonics (the true fundamental
         // was quieter than its 2nd or 3rd partial), so replace it if this peak is loud enough to
@@ -199,7 +229,11 @@ export class PitchDetector {
       }
     }
 
-    fundamentals = absorbIntoWeakFundamentals(fundamentals, weakPeaks);
+    fundamentals = absorbIntoWeakFundamentals(fundamentals, weakPeaks, (f) => this.canBeNote(f));
+    // Sounds outside the harp were kept until now so their overtones aren't taken for notes.
+    if (this.range) {
+      fundamentals = fundamentals.filter((f) => this.canBeNote(f.frequencyHz));
+    }
 
     // A note ending partway through the window can split into two peaks that round to the same
     // name. One note can't sound twice, so keep the louder peak.

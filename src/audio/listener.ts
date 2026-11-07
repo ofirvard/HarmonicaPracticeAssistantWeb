@@ -1,3 +1,4 @@
+import type { FrequencyRange } from '../core/harmonica';
 import { HOP_SIZE, NoteReader } from '../core/noteReader';
 import { NoteStabilizer } from '../core/noteStabilizer';
 import type { DetectedNote } from '../core/pitchDetector';
@@ -8,6 +9,7 @@ export interface ListenerCallbacks {
   onLevel(rms: number): void; // once per hop
   onFailure(message: string): void; // listening died after it started
   onAudio?(samples: Float32Array, sampleRate: number): void; // raw audio, once per hop
+  range?(): FrequencyRange; // the selected harp's notes; anything outside is never reported
 }
 
 /** Listens on the microphone until the returned session is closed. Rejects with a MicError. */
@@ -20,6 +22,7 @@ export async function startListening(callbacks: ListenerCallbacks): Promise<MicS
       try {
         callbacks.onAudio?.(samples, sampleRate);
         reader ??= new NoteReader(sampleRate);
+        reader.setRange(callbacks.range?.() ?? null);
         const notes = stabilizer.push(reader.push(samples));
         callbacks.onLevel(reader.lastRms);
         if (notes) {

@@ -275,6 +275,7 @@ async function startRecording(): Promise<void> {
   recentAudio = new RecentAudio(RECENT_AUDIO_SECONDS);
   try {
     mic = await startListening({
+      range: () => harmonica.range,
       onAudio(samples, sampleRate) {
         recentAudio.push(samples, sampleRate);
         if (saveAudioButton.disabled) {

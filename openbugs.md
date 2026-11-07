@@ -18,8 +18,14 @@ have already missed real failures twice, so none of these count as fixed until t
   (190 Hz) is key-independent, so A3 passes even though a C harp's lowest note is C4. G#7 is E5's 5th
   harmonic reported as a second note. E5 rather than F5 suggests draw 5 played flat (draw 5 bends
   toward the blow reed's E5) or the blow reed sounding.
-- **Next:** get a WAV with Settings → "Save last 20 s of audio", note exactly what was played, and
-  use it as a fixture before changing thresholds. Draw 4 bend was confirmed fixed on a real harp in
+- **Fix (awaiting retest):** at the user's request, nothing outside the selected harp's range is
+  reported. `PitchDetector.setRange` gets `Harmonica.range` (lowest to highest playable note, ±50
+  cents) on every hop. An out-of-range sound still claims its own overtones (so a low hum doesn't
+  show up as its octave), but can't be reported, can't replace a note as its lower fundamental, and can't absorb a note as its overtone.
+  So the A3 rumble no longer replaces E5, and G#7 no longer shows beside it. Notes inside the range
+  that the harp can't play still show `–`.
+- **Still open:** E5 rather than F5. Get a WAV with Settings → "Save last 20 s of audio", note
+  exactly what was played, and use it as a fixture. Draw 4 bend was confirmed fixed on a real harp in
   the same session, so any change must keep it working.
 
 ### Draw 4 bend showed `–` (confirmed fixed on a real harp)
@@ -68,7 +74,8 @@ are ignored.
 
 `holeLabel` goes by note name so the label always agrees with the name shown. A note played well
 off pitch therefore gets the nearest semitone's hole rather than `–`. Intended, but it means `–` only
-ever means "this harp can't play that note".
+ever means "this harp can't play that note", and only inside the harp's range, since notes outside
+it are never reported.
 
 ### A chord reduced to part of itself adds no entry
 

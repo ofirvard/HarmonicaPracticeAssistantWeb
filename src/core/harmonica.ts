@@ -87,6 +87,11 @@ const TUNING: ReadonlyArray<readonly [number, Bend, number]> = [
   [-10, Bend.NONE, 21],
 ];
 
+export interface FrequencyRange {
+  minHz: number;
+  maxHz: number;
+}
+
 /** Whether this hole and bend exist on a Richter harmonica. The layout is the same in every key. */
 export function isPlayable(number: number, bend: Bend): boolean {
   return TUNING.some(([n, b]) => n === number && b === bend);
@@ -103,6 +108,12 @@ export class Harmonica {
       const frequencyHz = harmonicaKey.rootFrequencyHz * 2 ** (halfSteps / 12);
       return { number, bend, noteName: frequencyToNote(frequencyHz), frequencyHz };
     });
+  }
+
+  /** The lowest and highest notes this harmonica can play, bends included. */
+  get range(): FrequencyRange {
+    const frequencies = this.holes.map((h) => h.frequencyHz);
+    return { minHz: Math.min(...frequencies), maxHz: Math.max(...frequencies) };
   }
 
   /** The hole with this number and bend, or null if this harmonica has no such hole. */

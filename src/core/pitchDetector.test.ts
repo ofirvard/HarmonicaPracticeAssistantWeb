@@ -132,6 +132,73 @@ describe.each([44100, 48000])('PitchDetector at %d Hz', (sampleRate) => {
     expect(names(tone(...chord, freq('C', 4), 0.006))).toEqual(['C6', 'E6', 'G6']);
   });
 
+  describe('with a C harp range', () => {
+    const cHarp = new Harmonica(HARMONICA_KEYS[0]!);
+    const ranged = new PitchDetector(FFT_SIZE, sampleRate);
+    ranged.setRange(cHarp.range);
+    const rangedNames = (samples: Float64Array) => ranged.detect(samples).map((n) => n.name);
+    const e5 = freq('E', 5);
+
+    // From a real phone recording of draw 5 on a C harp, which showed E5 as A3 ("–") and as
+    // E5+G#7 ("5+–"). The unranged detector is checked too, so these fail without the range.
+    it('does not let a quiet rumble a twelfth below replace the note', () => {
+      const sound = tone(e5, 0.3, e5 / 3, 0.06);
+      expect(names(sound)).toEqual(['A3']);
+      expect(rangedNames(sound)).toEqual(['E5']);
+    });
+
+    it('does not report a loud overtone above the harp as a second note', () => {
+      const sound = tone(e5, 0.3, 3400, 0.33); // G#7, too far from 5 × E5 to count as its overtone
+      expect(names(sound)).toEqual(['E5', 'G#7']);
+      expect(rangedNames(sound)).toEqual(['E5']);
+    });
+
+    it('reports nothing for a lone note outside the harp', () => {
+      expect(names(tone(freq('A', 3), 0.3))).toEqual(['A3']);
+      expect(rangedNames(tone(freq('A', 3), 0.3))).toEqual([]);
+      expect(rangedNames(tone(freq('G#', 7), 0.3))).toEqual([]);
+    });
+
+    it('does not show a sound below the harp as its overtones', () => {
+      const a3 = freq('A', 3);
+      const sound = tone(a3, 0.3, 2 * a3, 0.12, 3 * a3, 0.06);
+      expect(rangedNames(sound)).toEqual([]);
+    });
+
+    it('still hears the lowest and highest notes, even a little out of tune', () => {
+      const { minHz, maxHz } = cHarp.range;
+      const cents = (f: number, c: number) => f * 2 ** (c / 1200);
+      expect(rangedNames(tone(cents(minHz, -40), 0.3))).toEqual(['C4']);
+      expect(rangedNames(tone(cents(maxHz, 40), 0.3))).toEqual(['C7']);
+    });
+
+    it('still finds bends whose only loud overtone is the octave or twelfth', () => {
+      for (const [hole, bend] of [[-1, Bend.HALF_STEP], [-4, Bend.HALF_STEP], [-3, Bend.STEP_AND_A_HALF]] as const) {
+        const { frequencyHz: f0, noteName } = cHarp.find(hole, bend)!;
+        expect(rangedNames(tone(f0, 0.06, 2 * f0, 0.3, 3 * f0, 0.03)), noteName).toEqual([noteName]);
+        expect(rangedNames(tone(f0, 0.06, 3 * f0, 0.3)), noteName).toEqual([noteName]);
+      }
+    });
+  });
+
+  it('with a range set, still hears every note of every key, bends included', () => {
+    const ranged = new PitchDetector(FFT_SIZE, sampleRate);
+    for (const key of HARMONICA_KEYS) {
+      const harp = new Harmonica(key);
+      ranged.setRange(harp.range);
+      for (let hole = 1; hole <= 10; hole++) {
+        for (const number of [hole, -hole]) {
+          for (const bend of Object.values(Bend)) {
+            const h = harp.find(number, bend as Bend);
+            if (!h) continue;
+            const got = ranged.detect(tone(h.frequencyHz, 0.3, 2 * h.frequencyHz, 0.12)).map((n) => n.name);
+            expect(got, `${key.name} ${number} ${String(bend)}`).toEqual([h.noteName]);
+          }
+        }
+      }
+    }
+  });
+
   it('detects every two and three hole chord in every key', () => {
     const partials = [1, 0.7, 0.5, 0.3, 0.2];
     const wrong: string[] = [];

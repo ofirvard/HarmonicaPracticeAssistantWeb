@@ -1,3 +1,4 @@
+import type { FrequencyRange } from './harmonica';
 import { PitchDetector, type DetectedNote } from './pitchDetector';
 
 export const FFT_SIZE = 4096;
@@ -10,6 +11,10 @@ export class NoteReader {
 
   constructor(sampleRate: number) {
     this.detector = new PitchDetector(FFT_SIZE, sampleRate);
+  }
+
+  setRange(range: FrequencyRange | null): void {
+    this.detector.setRange(range);
   }
 
   get lastRms(): number {
