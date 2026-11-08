@@ -134,10 +134,12 @@ export class PitchDetector {
   }
 
   /**
-   * Limits notes to what the selected harp can play. A sound outside the range still claims its
-   * own overtones, so a low hum doesn't show up as its octave, but it is never reported, never
-   * replaces a note as its "true" lower fundamental, and never absorbs a note as one of its overtones. That stops a low rumble a twelfth below a note
-   * from replacing it, and a high overtone from showing up as a second note.
+   * Tells the detector which notes the selected harp can play. A sound outside the range still
+   * claims its own overtones, so a low hum doesn't show up as its octave, but it never replaces a
+   * note as its "true" lower fundamental and never absorbs a note as one of its overtones. It is
+   * only reported when nothing inside the range is sounding. That stops a low rumble a twelfth
+   * below a note from replacing it, and a high overtone from showing up as a second note, while a
+   * note the harp can't play still shows up on its own.
    */
   setRange(range: FrequencyRange | null): void {
     this.range = range;
@@ -230,9 +232,13 @@ export class PitchDetector {
     }
 
     fundamentals = absorbIntoWeakFundamentals(fundamentals, weakPeaks, (f) => this.canBeNote(f));
-    // Sounds outside the harp were kept until now so their overtones aren't taken for notes.
+    // Next to a note the harp can play, a sound outside its range is far more likely an overtone or
+    // noise than a second note, so it's only reported when it's the only thing sounding.
     if (this.range) {
-      fundamentals = fundamentals.filter((f) => this.canBeNote(f.frequencyHz));
+      const inRange = fundamentals.filter((f) => this.canBeNote(f.frequencyHz));
+      if (inRange.length > 0) {
+        fundamentals = inRange;
+      }
     }
 
     // A note ending partway through the window can split into two peaks that round to the same

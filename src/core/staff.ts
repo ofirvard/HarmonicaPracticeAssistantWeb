@@ -4,7 +4,7 @@ import type { DetectedNote } from './pitchDetector';
 import type { SongHole, SongLine } from './songParser';
 
 // Shown in place of a hole number when no hole on the current harmonica matches a note.
-const NO_HOLE_LABEL = '–';
+const NO_HOLE_LABEL = 'n/a';
 
 /**
  * What the player loaded or played, independent of harmonica key. The staff is always derived

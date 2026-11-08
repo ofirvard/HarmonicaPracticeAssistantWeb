@@ -1,5 +1,6 @@
 import { writeFileSync } from 'node:fs';
 import { chromium, expect, test, type Page } from '@playwright/test';
+import { storedCount } from './storage';
 import { renderWav } from './wav';
 
 const C5 = 523.25;
@@ -79,6 +80,13 @@ test.describe('with a fake microphone', () => {
     await page.click('#record-button');
     await expect(page.locator('#record-button')).toHaveText('Record');
     await expect(page.locator('#level')).toBeHidden();
+
+    // The take is kept across a reload, ready to save as a WAV.
+    await expect.poll(() => storedCount(page, 'recordings')).toBe(1);
+    await page.reload();
+    await page.click('[popovertarget=settings]');
+    await expect(page.locator('#recording-list li')).toHaveCount(1);
+    await expect(page.locator('#recording-list li')).toContainText('C harp');
     expect(problems).toEqual([]);
     await browser.close();
   });

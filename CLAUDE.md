@@ -9,10 +9,15 @@ Known bugs and unverified behaviour are in `openbugs.md`. Check it before touchi
 ## Decisions
 
 - Static site with no backend or accounts. Browser storage only for now (see Google Drive below).
+- Storage: settings in localStorage; songs and recordings in IndexedDB (`src/storage/library.ts`,
+  database `harmonica`). Chosen over localStorage because recordings are several MB each. If
+  IndexedDB won't open, the app runs in memory and says so.
 - Desktop layout first. Phones get a `max-width: 700px` media query at the end of `style.css`: the
   song list becomes a drawer opened by `#songs-button`, and the splitter is hidden. Keep desktop
   styles outside that block so the desktop UI stays unchanged.
 - The duplicate blow 3 / draw 2 note is labelled `3/-2`, since sound alone can't tell them apart.
+- A played note with no hole on the selected harp is labelled `n/a` (`NO_HOLE_LABEL` in
+  `src/core/staff.ts`). The user may switch it to `?` if it takes too much room.
 - Vanilla TypeScript, no UI framework. `vexflow` is pinned to exactly 4.2.5.
 
 ## Commands
@@ -35,10 +40,14 @@ npm run build
 - `src/audio/`: `mic.ts` (`openMic`, friendly errors), `listener.ts` (`startListening`, reusable by
   Practice).
 - `src/ui/staffView.ts`: VexFlow drawing. `setPracticeIndex` is ready for Practice.
-- `src/core/recentAudio.ts`: ring buffer of the last 20 s of mic audio and a WAV encoder, for
-  Settings → "Save last 20 s of audio".
+- `src/core/recordings.ts`: the last 3 recordings (Record to Stop, at most the last 5 min each) as
+  16-bit audio, and a WAV encoder, for Settings → Recent recordings.
+- `src/storage/library.ts`: IndexedDB stores `songs` (by file name) and `recordings` (by start
+  time). Unit tests use `fake-indexeddb`. A recording is stored on Stop and when the page is hidden
+  mid-recording (a phone may kill a backgrounded app). `navigator.storage.persist()` is requested
+  after the first successful write.
 - `src/settings.ts`: validated settings in localStorage.
-- `src/main.ts`: app wiring. The song list is in memory only.
+- `src/main.ts`: app wiring. Songs load from storage after startup, merged with any imported meanwhile.
 - `public/hop-processor.js`: AudioWorklet. Lives in `public` so it isn't bundled.
 - `e2e/`: Playwright. Excluded from `tsconfig.json` on purpose.
 - `README.md`: for people (live link, installing on a phone, deploying). Keep it in step.
@@ -51,8 +60,9 @@ npm run build
 - **Detection:** Hann window, parabolic peak interpolation, harmonic and subharmonic rejection, RMS
   silence threshold 0.015, peak threshold 0.32. Weak fundamentals absorb their overtones, because
   bends put most energy in overtones. When recording, the detector gets the selected harp's range
-  (`Harmonica.range`, ±50 cents) and never reports a note outside it; out-of-range peaks only count
-  as overtones. Without a range (as in most unit tests) the old behaviour applies.
+  (`Harmonica.range`, ±50 cents). A sound outside it can't replace or absorb an in-range note, and is
+  only reported when nothing in range is sounding. Without a range (as in most unit tests) the old
+  behaviour applies.
 - **Stabilizer:** a note must appear in two consecutive hops, and only a note not already sounding
   commits an entry.
 - **Staff:** always derived from key-independent `StaffItem`s through `toEntries(items, harmonica)`,
@@ -89,28 +99,27 @@ npm run build
    `startListening`. Disable Record during Practice, reset sensibly on key change and clear. Enable
    `#practice-button` in `index.html`, which is disabled with "Not available yet". Revisit match
    strictness on a real harmonica (bug 4 in `openbugs.md`).
-5. Song library: IndexedDB storage, in-app editor replacing the ✎ button, export.
+5. Song library: IndexedDB storage and delete (×) done. Still to do: in-app editor, export.
 6. Deploy: done. `.github/workflows/deploy.yml` publishes to GitHub Pages when run by hand (Actions
    tab or `gh workflow run deploy.yml`), not on push. Deploy only when the user asks.
    Installable and offline: `public/manifest.webmanifest`, icons in `public/icons/`, and `sw.js`,
    which a plugin in `vite.config.ts` generates at build time with every built file precached.
-7. **Google Drive integration.** Requested by the user, not designed yet. Presumably saving and
-   syncing songs through the user's Drive, which fits the no-backend design. Scope and details need
-   confirming with the user. It would change the "browser storage only" decision, so plan it
-   alongside phase 5's storage layer.
+7. **Google Drive integration.** On hold (2026-11-08): the user doesn't know yet where the app will
+   be hosted, and the OAuth client needs fixed origins. Idea so far: read songs from a chosen Drive
+   folder, cached locally for offline. Persistent local storage comes first (phase 5).
 
-Real failing audio: Settings → "Save last 20 s of audio" (built). Ask for a WAV before tuning.
+Real failing audio: Settings → Recent recordings → Save (built). Ask for a WAV before tuning.
 
 ## Where things stand (2026-11-08)
 
 - The user tests on an Android phone through the installed app, recording with its mic.
 - Confirmed on a real harp: draw 4 bend. Awaiting retest: the out-of-range fix for draw 5 (A3 and
   E5+G#7 readings), other bends. Still open: draw 5 read as E5 instead of F5 (needs a WAV).
-- The last changes were made and pushed from a cloud session, where `npm run test:e2e` couldn't run
-  (Playwright's browser didn't match). Unit tests passed, and the fake mic was checked by hand
-  against a build. Run `npm run test:e2e` locally once to confirm.
+- Uncommitted, awaiting the user's test: Recent recordings (last 3 takes, replacing "Save last
+  20 s"), out-of-range notes shown again when nothing in range sounds, `n/a` for no hole, and songs
+  and recordings kept in IndexedDB across reloads, with × to delete a song.
+- `npm run test:e2e` now runs locally. Two known failures, both in `openbugs.md`: a flaky chord-onset
+  race in the record test, and the narrow-window test (fails on `a1aa082` too).
 - The live app was last deployed with the range fix (commit 4d9251e). Later commits only change the
   deploy trigger and docs, so the live app matches `main`. After new app changes, deploy only when
   asked.
-- A local clone made before this session needs `git pull`: the phone layout, audio saving, range
-  fix, README and these notes all came from the cloud session.

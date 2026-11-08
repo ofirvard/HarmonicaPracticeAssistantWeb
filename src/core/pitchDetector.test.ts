@@ -153,16 +153,15 @@ describe.each([44100, 48000])('PitchDetector at %d Hz', (sampleRate) => {
       expect(rangedNames(sound)).toEqual(['E5']);
     });
 
-    it('reports nothing for a lone note outside the harp', () => {
-      expect(names(tone(freq('A', 3), 0.3))).toEqual(['A3']);
-      expect(rangedNames(tone(freq('A', 3), 0.3))).toEqual([]);
-      expect(rangedNames(tone(freq('G#', 7), 0.3))).toEqual([]);
+    it('still reports a lone note outside the harp', () => {
+      expect(rangedNames(tone(freq('A', 3), 0.3))).toEqual(['A3']);
+      expect(rangedNames(tone(freq('G#', 7), 0.3))).toEqual(['G#7']);
     });
 
-    it('does not show a sound below the harp as its overtones', () => {
+    it('reports a sound below the harp as itself, not as its overtones', () => {
       const a3 = freq('A', 3);
       const sound = tone(a3, 0.3, 2 * a3, 0.12, 3 * a3, 0.06);
-      expect(rangedNames(sound)).toEqual([]);
+      expect(rangedNames(sound)).toEqual(['A3']);
     });
 
     it('still hears the lowest and highest notes, even a little out of tune', () => {

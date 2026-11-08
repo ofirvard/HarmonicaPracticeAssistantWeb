@@ -12,13 +12,18 @@ Open the link in Chrome and choose **Install app** (or **Add to Home screen**) f
 the first visit it works offline. To get a newer version, close the app fully and reopen it while
 online.
 
+Imported songs and the last 3 recordings are kept in the browser on that device, so they're still
+there after closing the app. Clearing the site's data removes them. To remove a song, use the × next
+to it.
+
 The layout switches to a phone version on screens up to 700px wide: the song list moves behind the
 **☰ Songs** button.
 
 ## Reporting a misread note
 
-Record, play the note a few times, press Stop, then use ⚙ Settings → **Save last 20 s of audio**.
-Send the WAV along with exactly what you played. Real recordings become test cases.
+Record, play the note a few times, press Stop, then open ⚙ Settings → **Recent recordings** and
+press **Save** on it. The last 3 recordings are kept, even after closing the app. Send the WAV along with
+exactly what you played. Real recordings become test cases.
 
 ## Development
 

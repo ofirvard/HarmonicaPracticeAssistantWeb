@@ -116,9 +116,14 @@ button[aria-pressed='true']:hover:not(:disabled) {
   color: var(--muted);
 }
 
+#song-list li {
+  display: flex;
+}
+
 .song {
   display: block;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   padding: 6px 8px;
   border: 0;
@@ -134,9 +139,42 @@ button[aria-pressed='true']:hover:not(:disabled) {
   color: #fff;
 }
 
+/* On the row, not just the name, so the highlight runs under the delete button even while it's hidden. */
+#song-list li:has(.song[aria-current='true']) {
+  background: var(--accent);
+}
+
+#song-list li:has(.song[aria-current='true']) .song-delete {
+  color: #fff;
+}
+
+/* Quiet until the row is hovered or focused, so the list reads as names. */
+.song-delete {
+  flex: none;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+}
+
 @media (hover: hover) {
   .song:hover:not(:disabled) {
     background: var(--accent);
+    color: #fff;
+  }
+
+  .song-delete {
+    opacity: 0;
+  }
+
+  #song-list li:hover .song-delete,
+  .song-delete:focus-visible {
+    opacity: 1;
+  }
+
+  .song-delete:hover {
+    background: var(--error);
     color: #fff;
   }
 }
@@ -258,9 +296,44 @@ button[aria-pressed='true']:hover:not(:disabled) {
   gap: 10px;
 }
 
-#settings-default,
-#save-audio {
+#settings-default {
   background: var(--bg);
+}
+
+#recordings {
+  margin: 4px 0 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+#recordings h3 {
+  margin: 0 0 6px;
+  font-size: inherit;
+}
+
+#recording-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+#recording-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 3px 0;
+}
+
+#recording-list button {
+  padding: 3px 10px;
+  background: var(--bg);
+}
+
+#recording-empty {
+  margin: 0;
+  max-width: 280px;
+  color: var(--muted);
 }
 
 /* Phone layout. Desktop is everything above; this only changes small screens. The song list

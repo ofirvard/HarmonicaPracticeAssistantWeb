@@ -80,8 +80,12 @@
         <input id="annotationSize-input" type="range" step="1" />
         <output id="annotationSize-value"></output>
       </label>
+      <section id="recordings" aria-labelledby="recordings-heading">
+        <h3 id="recordings-heading">Recent recordings</h3>
+        <ul id="recording-list"></ul>
+        <p id="recording-empty">None yet. The last 3 recordings are kept here.</p>
+      </section>
       <div id="settings-actions">
-        <button id="save-audio" type="button" disabled title="Record something first">Save last 20 s of audio</button>
         <button id="settings-default" type="button">Default</button>
       </div>
     </div>

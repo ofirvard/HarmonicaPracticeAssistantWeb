@@ -53,7 +53,7 @@ describe('toEntries', () => {
     expect(toEntries(items, cHarp)[0]).toMatchObject({
       keys: ['c/5', 'd#/5'],
       letters: 'C5+D#5',
-      holes: '4+–',
+      holes: '4+n/a',
     });
   });
 

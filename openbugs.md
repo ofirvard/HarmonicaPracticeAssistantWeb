@@ -18,13 +18,14 @@ have already missed real failures twice, so none of these count as fixed until t
   (190 Hz) is key-independent, so A3 passes even though a C harp's lowest note is C4. G#7 is E5's 5th
   harmonic reported as a second note. E5 rather than F5 suggests draw 5 played flat (draw 5 bends
   toward the blow reed's E5) or the blow reed sounding.
-- **Fix (awaiting retest):** at the user's request, nothing outside the selected harp's range is
-  reported. `PitchDetector.setRange` gets `Harmonica.range` (lowest to highest playable note, ±50
+- **Fix (awaiting retest):** at first nothing outside the selected harp's range was reported. The
+  user then asked for those notes back (labelled `n/a`), so now an out-of-range sound is reported
+  only when nothing in range is sounding. The protections below still hold. `PitchDetector.setRange` gets `Harmonica.range` (lowest to highest playable note, ±50
   cents) on every hop. An out-of-range sound still claims its own overtones (so a low hum doesn't
   show up as its octave), but can't be reported, can't replace a note as its lower fundamental, and
   can't absorb a note as its overtone. So the A3 rumble no longer replaces E5, and G#7 no longer
-  shows beside it. Notes inside the range that the harp can't play still show `–`.
-- **Still open:** E5 rather than F5. Get a WAV with Settings → "Save last 20 s of audio", note
+  shows beside it. Any played note with no hole, in range or not, shows `n/a`.
+- **Still open:** E5 rather than F5. Get a WAV from Settings → Recent recordings, note
   exactly what was played, and use it as a fixture. Draw 4 bend was confirmed fixed on a real harp in
   the same session, so any change must keep it working.
 
@@ -45,6 +46,8 @@ have already missed real failures twice, so none of these count as fixed until t
   matches the harp.
 
 ### Bends showed `–+–+–` (fix awaiting retest)
+
+`–` was the no-hole label at the time; it is now `n/a`.
 
 - **Reported:** bends came out as chords of `–`.
 - **Cause (simulated):** overtones of a weak fundamental were reported as a chord.
@@ -73,9 +76,8 @@ are ignored.
 ### Off-pitch notes take the nearest semitone's label
 
 `holeLabel` goes by note name so the label always agrees with the name shown. A note played well
-off pitch therefore gets the nearest semitone's hole rather than `–`. Intended, but it means `–` only
-ever means "this harp can't play that note", and only inside the harp's range, since notes outside
-it are never reported.
+off pitch therefore gets the nearest semitone's hole rather than `n/a`. Intended, but it means `n/a`
+only ever means "this harp can't play that note", which includes anything outside its range.
 
 ### A chord reduced to part of itself adds no entry
 
@@ -89,6 +91,20 @@ Going from a chord to a subset of its notes with no gap records nothing new
 The desktop app's Practice mode needed an exact match, which may be too strict for real playing.
 Deliberately left until Practice is ported and can be tried on a real harmonica.
 
+### A chord's notes can start in different hops (flaky e2e test)
+
+When a chord's notes don't all clear the threshold in the same hop, one of them can commit alone
+first, e.g. `E5` then `C5+E5+G5`. The `records notes, chords and repeats` Playwright test hits this
+in roughly 1 run in 10 (seen with the code before and after the out-of-range change; a unit probe
+over hop alignments found it in both). Not fixed: holding back a lone note to see if a chord follows
+would delay every note.
+
+### Narrow-window e2e test fails
+
+`a narrower window wraps the staff without a page scrollbar` (`e2e/ui.spec.ts`) fails locally:
+resizing to 620px doesn't add staff lines. Fails on `a1aa082` too, so it predates the recordings
+and range changes. Not investigated yet.
+
 ## Not yet verified
 
 - 48 kHz is only covered by unit tests end to end. The browser fake mic ran at 44.1 kHz, while real
@@ -100,6 +116,7 @@ Deliberately left until Practice is ported and can be tried on a real harmonica.
 
 ## Capturing real failures
 
-Settings → "Save last 20 s of audio" saves the end of the latest recording as a WAV (shared on
-phones, downloaded on desktop), named with the harp key. Use it as a test fixture rather than
+Settings → Recent recordings keeps the last 3 recordings (Record to Stop, the last 5 minutes of
+each, stored on the device across reloads). Save gives a WAV (shared on phones, downloaded on desktop), named
+with the harp key and start time. Use it as a test fixture rather than
 tuning against simulations.

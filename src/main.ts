@@ -3,16 +3,12 @@ import { startListening } from './audio/listener';
 import { MicError, type MicSession } from './audio/mic';
 import { Bend, HARMONICA_KEYS, Harmonica, keyByName } from './core/harmonica';
 import { SILENCE_RMS_THRESHOLD } from './core/pitchDetector';
-import { RecentAudio } from './core/recentAudio';
+import { RecordingList, type Recording } from './core/recordings';
 import { parseSong } from './core/songParser';
 import { songToItems, toEntries, type StaffItem } from './core/staff';
 import { DEFAULT_SETTINGS, LIMITS, loadSettings, saveSettings, type Settings } from './settings';
+import { Library, type Song } from './storage/library';
 import { StaffView } from './ui/staffView';
-
-interface Song {
-  name: string;
-  text: string;
-}
 
 const DEMO_HOLES = [4, -4, 5, 6, 5, -4, 4];
 
@@ -48,6 +44,37 @@ const statusLine = el('status');
 const songList = el<HTMLUListElement>('song-list');
 const importInput = el<HTMLInputElement>('import-input');
 
+// Songs and recordings live in IndexedDB. If it can't open, the app still works, in memory only.
+const RECORDING_MAX_SECONDS = 5 * 60; // about 6 MB a minute at 48 kHz
+const libraryReady: Promise<Library | null> = Library.open(RECORDING_MAX_SECONDS).catch((e) => {
+  console.warn('Storage unavailable', e);
+  showStatus("This browser won't let the app store data, so songs and recordings are lost on reload.");
+  return null;
+});
+let askedToPersist = false;
+
+/** Runs a storage write, reporting failure (most likely a full disk) without breaking the app. */
+async function store(what: string, write: (library: Library) => Promise<void>): Promise<void> {
+  const library = await libraryReady;
+  if (!library) return;
+  try {
+    await write(library);
+  } catch (e) {
+    showStatus(`Could not save ${what}: ${e instanceof Error ? e.message : e}`);
+    return;
+  }
+  // Asks the browser not to clear our data when space runs low. Granted silently in Chrome,
+  // and usually granted for an installed app. Asked once something worth keeping is saved.
+  if (!askedToPersist) {
+    askedToPersist = true;
+    void navigator.storage?.persist?.().catch(() => undefined);
+  }
+}
+
+function sortSongs(): void {
+  songs.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+}
+
 function persist(change: Partial<Settings>): void {
   Object.assign(settings, change);
   saveSettings(storage, settings);
@@ -75,8 +102,15 @@ function renderSongList(): void {
         loadSong(song);
         setSongsOpen(false);
       });
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'song-delete';
+      remove.textContent = '×';
+      remove.title = `Delete ${song.name}`;
+      remove.setAttribute('aria-label', `Delete ${song.name}`);
+      remove.addEventListener('click', () => deleteSong(song));
       const row = document.createElement('li');
-      row.append(button);
+      row.append(button, remove);
       return row;
     }),
   );
@@ -113,27 +147,59 @@ function loadSong(song: Song): void {
   renderSongList();
 }
 
+function deleteSong(song: Song): void {
+  if (!confirm(`Delete ${song.name}?`)) return;
+  songs.splice(songs.indexOf(song), 1);
+  if (activeSong === song.name) {
+    activeSong = null; // the staff keeps showing it until something else is loaded
+  }
+  renderSongList();
+  void store(song.name, (library) => library.deleteSong(song.name));
+}
+
 async function importFiles(files: File[]): Promise<void> {
-  let imported: Song | null = null;
+  const added: Song[] = [];
   for (const file of files) {
     try {
-      imported = { name: file.name, text: await file.text() };
+      added.push({ name: file.name, text: await file.text() });
     } catch (e) {
       showStatus(`Could not read ${file.name}: ${e instanceof Error ? e.message : e}`);
-      continue;
     }
-    const existing = songs.findIndex((s) => s.name === file.name);
+  }
+  for (const song of added) {
+    const existing = songs.findIndex((s) => s.name === song.name);
     if (existing >= 0) {
-      songs[existing] = imported;
+      songs[existing] = song;
     } else {
-      songs.push(imported);
+      songs.push(song);
     }
   }
-  songs.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+  sortSongs();
   renderSongList();
-  if (imported) {
-    loadSong(imported);
+  const last = added.at(-1);
+  if (last) {
+    loadSong(last);
   }
+  if (added.length > 0) {
+    void store(added.length === 1 ? last!.name : `${added.length} songs`, (library) => library.saveSongs(added));
+  }
+}
+
+/** Reads back saved songs and recordings. Anything imported or recorded meanwhile wins. */
+async function loadLibrary(): Promise<void> {
+  const library = await libraryReady;
+  if (!library) return;
+  try {
+    const [savedSongs, savedRecordings] = await Promise.all([library.songs(), library.recordings()]);
+    songs.push(...savedSongs.filter((saved) => !songs.some((s) => s.name === saved.name)));
+    sortSongs();
+    recordings.restore(savedRecordings);
+  } catch (e) {
+    showStatus(`Could not load saved songs and recordings: ${e instanceof Error ? e.message : e}`);
+    return;
+  }
+  renderSongList();
+  renderRecordings();
 }
 
 function setToggle(button: HTMLElement, on: boolean): void {
@@ -231,14 +297,39 @@ function levelPercent(rms: number): number {
 }
 
 let mic: MicSession | null = null;
-// The last stretch of mic audio, saved from Settings so a misread note can be sent in as a test case.
-const RECENT_AUDIO_SECONDS = 20;
-let recentAudio = new RecentAudio(RECENT_AUDIO_SECONDS);
-const saveAudioButton = el<HTMLButtonElement>('save-audio');
+// The last few recordings, saved from Settings so a misread note can be sent in as a test case.
+const recordings = new RecordingList(3, RECORDING_MAX_SECONDS);
+let currentRecording: Recording | null = null;
+const recordingList = el<HTMLUListElement>('recording-list');
 
-async function saveRecentAudio(): Promise<void> {
-  const stamp = new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-');
-  const file = new File([recentAudio.toWav()], `harmonica-${harmonica.key.name}-${stamp}.wav`, {
+function formatDuration(seconds: number): string {
+  const s = Math.round(seconds);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+function renderRecordings(): void {
+  recordingList.replaceChildren(
+    ...recordings.all.map((recording) => {
+      const time = recording.startedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const length = recording === currentRecording ? 'recording…' : formatDuration(recording.duration);
+      const label = document.createElement('span');
+      label.textContent = `${time} · ${length} · ${recording.keyName} harp`;
+      const save = document.createElement('button');
+      save.type = 'button';
+      save.textContent = 'Save';
+      save.title = 'Save as a WAV file';
+      save.addEventListener('click', () => void saveRecording(recording));
+      const row = document.createElement('li');
+      row.append(label, save);
+      return row;
+    }),
+  );
+  el('recording-empty').hidden = recordings.all.length > 0;
+}
+
+async function saveRecording(recording: Recording): Promise<void> {
+  const stamp = recording.startedAt.toISOString().slice(0, 19).replace(/[T:]/g, '-');
+  const file = new File([recording.toWav()], `harmonica-${recording.keyName}-${stamp}.wav`, {
     type: 'audio/wav',
   });
   // On phones, the share sheet can send the file straight to a chat or Drive.
@@ -261,9 +352,20 @@ const recordButton = el<HTMLButtonElement>('record-button');
 const levelMeter = el('level');
 const levelFill = el('level-fill');
 
+/** Stores the recording in progress, so it survives a reload or the phone closing the app. */
+function storeRecording(recording: Recording): void {
+  if (recording.duration === 0) return;
+  void store('the recording', (library) => library.saveRecording(recording, recordings.all));
+}
+
 function stopRecording(): void {
   mic?.close();
   mic = null;
+  if (currentRecording) {
+    storeRecording(currentRecording);
+  }
+  currentRecording = null;
+  renderRecordings();
   recordButton.textContent = 'Record';
   recordButton.disabled = false;
   levelMeter.hidden = true;
@@ -272,16 +374,16 @@ function stopRecording(): void {
 async function startRecording(): Promise<void> {
   recordButton.disabled = true;
   showStatus('');
-  recentAudio = new RecentAudio(RECENT_AUDIO_SECONDS);
   try {
     mic = await startListening({
       range: () => harmonica.range,
       onAudio(samples, sampleRate) {
-        recentAudio.push(samples, sampleRate);
-        if (saveAudioButton.disabled) {
-          saveAudioButton.disabled = false;
-          saveAudioButton.title = 'Saves the end of the latest recording as a WAV file';
+        // Started on the first audio, so a mic that never opens leaves no empty recording behind.
+        if (!currentRecording) {
+          currentRecording = recordings.start(harmonica.key.name);
+          renderRecordings();
         }
+        currentRecording.push(samples, sampleRate);
       },
       onNotes(notes) {
         items.push({ kind: 'played', notes });
@@ -313,7 +415,14 @@ recordButton.addEventListener('click', () => {
     void startRecording();
   }
 });
-saveAudioButton.addEventListener('click', () => void saveRecentAudio());
+// Refreshes the length of a recording still in progress.
+el('settings').addEventListener('toggle', renderRecordings);
+// A phone may kill the app once it's in the background, so keep what's been recorded so far.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden' && currentRecording) {
+    storeRecording(currentRecording);
+  }
+});
 el('level-threshold').style.left = `${levelPercent(SILENCE_RMS_THRESHOLD)}%`;
 
 bindToggle('holes-toggle', 'showHoles');
@@ -351,4 +460,6 @@ el('clear-button').addEventListener('click', () => {
 });
 
 renderSongList();
+renderRecordings();
 redrawStaff('top');
+void loadLibrary();

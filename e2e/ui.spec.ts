@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { storedCount } from './storage';
 
 const SONG = `My Title
 
@@ -78,6 +79,22 @@ test('settings persist across a reload and Default resets them', async ({ page }
   await page.click('#settings-default');
   await expect(page.locator('#key-select')).toHaveValue('C');
   await expect(page.locator('#spacing-input')).toHaveValue('80');
+});
+
+test('imported songs survive a reload and can be deleted', async ({ page }) => {
+  await loadSong(page);
+  await importSong(page, 'second.txt', '4 5 6\n');
+  await expect.poll(() => storedCount(page, 'songs')).toBe(2);
+  await page.reload();
+  await expect(page.locator('.song')).toHaveText(['second.txt', 'twinkle.txt']);
+
+  page.on('dialog', (dialog) => dialog.accept());
+  await page.locator('#song-list li', { hasText: 'twinkle.txt' }).hover();
+  await page.click('[aria-label="Delete twinkle.txt"]');
+  await expect(page.locator('.song')).toHaveText(['second.txt']);
+  await expect.poll(() => storedCount(page, 'songs')).toBe(1);
+  await page.reload();
+  await expect(page.locator('.song')).toHaveText(['second.txt']);
 });
 
 test('a file with no holes shows an error that Clear dismisses', async ({ page }) => {
