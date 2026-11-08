@@ -115,11 +115,10 @@ Real failing audio: Settings → Recent recordings → Save (built). Ask for a W
 - The user tests on an Android phone through the installed app, recording with its mic.
 - Confirmed on a real harp: draw 4 bend. Awaiting retest: the out-of-range fix for draw 5 (A3 and
   E5+G#7 readings), other bends. Still open: draw 5 read as E5 instead of F5 (needs a WAV).
-- Uncommitted, awaiting the user's test: Recent recordings (last 3 takes, replacing "Save last
-  20 s"), out-of-range notes shown again when nothing in range sounds, `n/a` for no hole, and songs
-  and recordings kept in IndexedDB across reloads, with × to delete a song.
+- Deployed in 0d67620, awaiting the user's test on the phone: Recent recordings (last 3 takes,
+  replacing "Save last 20 s"), out-of-range notes shown again when nothing in range sounds, `n/a`
+  for no hole, and songs and recordings kept in IndexedDB across reloads, with × to delete a song.
 - `npm run test:e2e` now runs locally. Two known failures, both in `openbugs.md`: a flaky chord-onset
   race in the record test, and the narrow-window test (fails on `a1aa082` too).
-- The live app was last deployed with the range fix (commit 4d9251e). Later commits only change the
-  deploy trigger and docs, so the live app matches `main`. After new app changes, deploy only when
-  asked.
+- The live app was last deployed from 0d67620 and matches `main`. After new app changes, deploy
+  only when asked.
