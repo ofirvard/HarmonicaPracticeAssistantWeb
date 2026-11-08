@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
 import { storedCount } from './storage';
 
@@ -95,6 +96,13 @@ test('imported songs survive a reload and can be deleted', async ({ page }) => {
   await expect.poll(() => storedCount(page, 'songs')).toBe(1);
   await page.reload();
   await expect(page.locator('.song')).toHaveText(['second.txt']);
+});
+
+test('Settings shows the version from package.json', async ({ page }) => {
+  const { version } = JSON.parse(readFileSync('package.json', 'utf8'));
+  await page.goto('/');
+  await page.click('[popovertarget=settings]');
+  await expect(page.locator('#app-version')).toHaveText(`v${version}`);
 });
 
 test('a file with no holes shows an error that Clear dismisses', async ({ page }) => {

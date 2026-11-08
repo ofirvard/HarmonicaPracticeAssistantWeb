@@ -1,4 +1,5 @@
 import { defineConfig, type Plugin } from 'vitest/config';
+import { version } from './package.json';
 
 // Emits sw.js listing every built file, so the whole app is cached on first visit and works
 // offline. The cache name is a hash of that list, so each deploy replaces the old cache.
@@ -58,6 +59,8 @@ export default defineConfig({
   // Relative paths so the build works from any folder, such as GitHub Pages' /<repo>/.
   base: './',
   plugins: [serviceWorker()],
+  // The version in package.json, shown in Settings. See "Versioning" in CLAUDE.md.
+  define: { __APP_VERSION__: JSON.stringify(version) },
   server: {
     // This repo lives on /mnt/c under WSL, where file-change events from Windows editors often
     // never reach Linux, so hot reload has to poll instead.

@@ -20,6 +20,21 @@ Known bugs and unverified behaviour are in `openbugs.md`. Check it before touchi
   `src/core/staff.ts`). The user may switch it to `?` if it takes too much room.
 - Vanilla TypeScript, no UI framework. `vexflow` is pinned to exactly 4.2.5.
 
+## Versioning
+
+`x.y.z`, kept in `package.json` and shown in Settings (`__APP_VERSION__`, defined in
+`vite.config.ts`). Bump it in the same commit as the change:
+
+- **x (major):** milestones. 1.0.0 is when Practice is finished.
+- **y (minor):** a new feature. Resets z.
+- **z (patch):** a bug fix or small UI fix.
+- Docs, tests and CI changes don't bump anything.
+
+History, worked out from the commits: 0.1.0 first working app with recording (`941d184`), 0.2.0
+deploy and offline (`f8f14f5`), 0.3.0 phone layout (`81930e9`), 0.3.1 Import moved (`79965f8`), 0.3.2
+toggle colour fix (`ebd5176`), 0.4.0 save audio (`367d073`), 0.4.1 out-of-range fix (`4d9251e`), 0.5.0
+song library in IndexedDB, recordings, `n/a` (`0d67620`).
+
 ## Commands
 
 Run npm from WSL only, not Windows. Open `localhost:5173` in the Windows browser.

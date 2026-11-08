@@ -293,7 +293,14 @@ button[aria-pressed='true']:hover:not(:disabled) {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
+  align-items: center;
   gap: 10px;
+}
+
+#app-version {
+  margin-right: auto;
+  color: var(--muted);
+  font-size: 12px;
 }
 
 #settings-default {

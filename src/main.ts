@@ -425,6 +425,7 @@ document.addEventListener('visibilitychange', () => {
 });
 el('level-threshold').style.left = `${levelPercent(SILENCE_RMS_THRESHOLD)}%`;
 
+el('app-version').textContent = `v${__APP_VERSION__}`;
 bindToggle('holes-toggle', 'showHoles');
 bindToggle('letters-toggle', 'showLetters');
 bindSettings();
