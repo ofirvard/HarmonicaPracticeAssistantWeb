@@ -41,6 +41,7 @@ npm run build
 - `src/main.ts`: app wiring. The song list is in memory only.
 - `public/hop-processor.js`: AudioWorklet. Lives in `public` so it isn't bundled.
 - `e2e/`: Playwright. Excluded from `tsconfig.json` on purpose.
+- `README.md`: for people (live link, installing on a phone, deploying). Keep it in step.
 
 ## How it works
 
@@ -99,3 +100,17 @@ npm run build
    alongside phase 5's storage layer.
 
 Real failing audio: Settings → "Save last 20 s of audio" (built). Ask for a WAV before tuning.
+
+## Where things stand (2026-11-08)
+
+- The user tests on an Android phone through the installed app, recording with its mic.
+- Confirmed on a real harp: draw 4 bend. Awaiting retest: the out-of-range fix for draw 5 (A3 and
+  E5+G#7 readings), other bends. Still open: draw 5 read as E5 instead of F5 (needs a WAV).
+- The last changes were made and pushed from a cloud session, where `npm run test:e2e` couldn't run
+  (Playwright's browser didn't match). Unit tests passed, and the fake mic was checked by hand
+  against a build. Run `npm run test:e2e` locally once to confirm.
+- The live app was last deployed with the range fix (commit 4d9251e). Later commits only change the
+  deploy trigger and docs, so the live app matches `main`. After new app changes, deploy only when
+  asked.
+- A local clone made before this session needs `git pull`: the phone layout, audio saving, range
+  fix, README and these notes all came from the cloud session.

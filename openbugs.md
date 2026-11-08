@@ -21,9 +21,9 @@ have already missed real failures twice, so none of these count as fixed until t
 - **Fix (awaiting retest):** at the user's request, nothing outside the selected harp's range is
   reported. `PitchDetector.setRange` gets `Harmonica.range` (lowest to highest playable note, ±50
   cents) on every hop. An out-of-range sound still claims its own overtones (so a low hum doesn't
-  show up as its octave), but can't be reported, can't replace a note as its lower fundamental, and can't absorb a note as its overtone.
-  So the A3 rumble no longer replaces E5, and G#7 no longer shows beside it. Notes inside the range
-  that the harp can't play still show `–`.
+  show up as its octave), but can't be reported, can't replace a note as its lower fundamental, and
+  can't absorb a note as its overtone. So the A3 rumble no longer replaces E5, and G#7 no longer
+  shows beside it. Notes inside the range that the harp can't play still show `–`.
 - **Still open:** E5 rather than F5. Get a WAV with Settings → "Save last 20 s of audio", note
   exactly what was played, and use it as a fixture. Draw 4 bend was confirmed fixed on a real harp in
   the same session, so any change must keep it working.
@@ -92,7 +92,9 @@ Deliberately left until Practice is ported and can be tried on a real harmonica.
 ## Not yet verified
 
 - 48 kHz is only covered by unit tests end to end. The browser fake mic ran at 44.1 kHz, while real
-  browsers usually capture at 48 kHz.
+  browsers usually capture at 48 kHz. The phone recordings so far read single notes and the draw 4
+  bend correctly, but the phone's sample rate wasn't checked. A saved WAV's header shows it.
+- On the phone: the installed app opening in airplane mode, and the share sheet for saved audio.
 - Dev server file watching with edits made from IntelliJ on `/mnt/c` (polling is on, but it hasn't
   been confirmed by the user).
 
