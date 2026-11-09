@@ -125,15 +125,23 @@ npm run build
 
 Real failing audio: Settings → Recent recordings → Save (built). Ask for a WAV before tuning.
 
-## Where things stand (2026-11-08)
+## Where things stand (2026-11-09)
 
-- The user tests on an Android phone through the installed app, recording with its mic.
-- Confirmed on a real harp: draw 4 bend. Awaiting retest: the out-of-range fix for draw 5 (A3 and
-  E5+G#7 readings), other bends. Still open: draw 5 read as E5 instead of F5 (needs a WAV).
-- Deployed in 0d67620, awaiting the user's test on the phone: Recent recordings (last 3 takes,
-  replacing "Save last 20 s"), out-of-range notes shown again when nothing in range sounds, `n/a`
-  for no hole, and songs and recordings kept in IndexedDB across reloads, with × to delete a song.
-- `npm run test:e2e` now runs locally. Two known failures, both in `openbugs.md`: a flaky chord-onset
-  race in the record test, and the narrow-window test (fails on `a1aa082` too).
-- The live app was last deployed from 0d67620 and matches `main`. After new app changes, deploy
-  only when asked.
+- Live: v0.5.0 (commit `16ff2ef`, tagged), deployed and matching `main`. Deploy only when asked.
+- The user tests on an Android phone through the installed app, recording with its mic. From
+  2026-11-09 they also work from a session on the phone.
+- First feedback on 0.5.0: "seems better, but not sensitive enough". Playing blow 5 (one note)
+  wrote several entries. Their dog was howling along, and since 0.5.0 an out-of-range sound on its
+  own is shown again (`n/a`), so the dog may explain some of it. Still unclear whether the problem
+  is extra notes (too sensitive) or missed notes (not sensitive enough); these pull thresholds
+  opposite ways. **Don't tune anything until the user sends a WAV** (Settings → Recent recordings
+  → Save) with what they played, the key and what the staff showed. They'll retest without the dog.
+- Still awaiting a real-harp retest: draw 5 (A3 and E5+G#7 readings should be gone; E5 instead of
+  F5 needs a WAV), bends other than draw 4, songs and recordings surviving a reopen, the × delete,
+  recordings saved when the app is backgrounded, `n/a` width on the staff (may switch to `?`),
+  offline in airplane mode.
+- Confirmed on a real harp: draw 4 bend (before 0.5.0).
+- `npm run test:e2e`: two known failures, both in `openbugs.md`: a flaky chord-onset race in the
+  record test, and the narrow-window test (fails on `a1aa082` too).
+- Pushing from the user's WSL machine: the SSH key has a passphrase, so push over HTTPS with
+  `gh auth git-credential`. A cloud session pushes normally.

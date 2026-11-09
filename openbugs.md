@@ -55,6 +55,17 @@ have already missed real failures twice, so none of these count as fixed until t
   by note name. In the simulations it gives `-3"` where it gave `–` before. `-4'` was the first real
   retest and showed the gap above, so other bends are still unconfirmed.
 
+### One note written as several entries (reported on 0.5.0, needs a recording)
+
+- **Reported (2026-11-09):** playing blow 5 once wrote several entries. The user's dog was howling
+  along at the time.
+- **Possible causes:** the dog, since an out-of-range sound on its own is shown again since 0.5.0;
+  the note wobbling across a semitone boundary; or the note dropping out for a hop and committing
+  again. The user also said "not sensitive enough", so it isn't yet clear whether notes are
+  missed as well.
+- **Next:** a WAV without the dog, with exactly what was played, the key and a screenshot. Don't
+  tune thresholds before then.
+
 ## Open behaviour
 
 ### A bend may show as a chord with its second reed
