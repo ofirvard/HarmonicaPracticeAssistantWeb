@@ -18,6 +18,10 @@ Known bugs and unverified behaviour are in `openbugs.md`. Check it before touchi
 - The duplicate blow 3 / draw 2 note is labelled `3/-2`, since sound alone can't tell them apart.
 - A played note with no hole on the selected harp is labelled `n/a` (`NO_HOLE_LABEL` in
   `src/core/staff.ts`). The user may switch it to `?` if it takes too much room.
+- Export (`src/core/tabExport.ts`) writes the staff as a tab file Import reads back. Song holes stay
+  tab, with lyrics. Recorded notes are written by pitch (`E5`, chords `C5+E5+G5`), not hole, at the
+  user's request: pitch survives a key change, and a label like `3/-2` or `n/a` would lose it.
+  `parseSong` reads such a line as recorded notes (`PlayedLine`).
 - Vanilla TypeScript, no UI framework. `vexflow` is pinned to exactly 4.2.5.
 
 ## Versioning
@@ -34,7 +38,7 @@ History, worked out from the commits: 0.1.0 first working app with recording (`9
 deploy and offline (`f8f14f5`), 0.3.0 phone layout (`81930e9`), 0.3.1 Import moved (`79965f8`), 0.3.2
 toggle colour fix (`ebd5176`), 0.4.0 save audio (`367d073`), 0.4.1 out-of-range fix (`4d9251e`), 0.5.0
 song library in IndexedDB, recordings, `n/a` (`0d67620`). 0.5.1 train noise no longer written as
-`n/a`.
+`n/a` (`74e76eb`), 0.6.0 Export.
 
 ## Commands
 
@@ -118,7 +122,8 @@ npm run build
    `startListening`. Disable Record during Practice, reset sensibly on key change and clear. Enable
    `#practice-button` in `index.html`, which is disabled with "Not available yet". Revisit match
    strictness on a real harmonica (bug 4 in `openbugs.md`).
-5. Song library: IndexedDB storage and delete (×) done. Still to do: in-app editor, export.
+5. Song library: IndexedDB storage, delete (×) and Export of the staff done. Still to do: in-app
+   editor.
 6. Deploy: done. `.github/workflows/deploy.yml` publishes to GitHub Pages when run by hand (Actions
    tab or `gh workflow run deploy.yml`), not on push. Deploy only when the user asks.
    Installable and offline: `public/manifest.webmanifest`, icons in `public/icons/`, and `sw.js`,
@@ -146,7 +151,8 @@ Real failing audio: Settings → Recent recordings → Save (built). Ask for a W
   offline in airplane mode.
 - 2026-11-10: first real WAV arrived, from a train with nothing played (not the blow 5 test). It
   showed noise outside the harp written as `n/a`; fixed in 0.5.1 (see `openbugs.md`). The blow 5
-  retest without the dog is still to come.
+  retest without the dog is still to come. Export added the same day in 0.6.0; not yet tried on
+  the phone's share sheet.
 - Confirmed on a real harp: draw 4 bend (before 0.5.0).
 - `npm run test:e2e`: two known failures, both in `openbugs.md`: a flaky chord-onset race in the
   record test, and the narrow-window test (fails on `a1aa082` too).

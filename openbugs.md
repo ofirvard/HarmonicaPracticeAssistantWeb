@@ -138,7 +138,8 @@ and range changes. Not investigated yet.
 
 - 48 kHz end to end in the browser: the Playwright fake mic runs at 44.1 kHz. The user's Android
   phone captures at 48 kHz (confirmed from a saved WAV, 2026-11-10), and the unit tests cover both.
-- On the phone: the installed app opening in airplane mode, and the share sheet for saved audio.
+- On the phone: the installed app opening in airplane mode, and the share sheet for saved audio and
+  exported tabs (`.txt`).
 - Dev server file watching with edits made from IntelliJ on `/mnt/c` (polling is on, but it hasn't
   been confirmed by the user).
 

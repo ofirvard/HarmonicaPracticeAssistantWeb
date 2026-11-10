@@ -19,6 +19,13 @@ to it.
 The layout switches to a phone version on screens up to 700px wide: the song list moves behind the
 **☰ Songs** button.
 
+## Exporting
+
+**Export** (next to Clear) saves what's on the staff as a `.txt` tab file: shared on a phone,
+downloaded on a computer. Song holes are written as tab with their lyrics. Recorded notes are
+written as the notes you played, with chords joined by `+` (for example `E5 C5+E5+G5`), so they
+keep their pitch whatever harp is selected. **Import** reads the file back to the same staff.
+
 ## Reporting a misread note
 
 Record, play the note a few times, press Stop, then open ⚙ Settings → **Recent recordings** and

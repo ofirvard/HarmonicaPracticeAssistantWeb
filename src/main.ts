@@ -6,6 +6,7 @@ import { SILENCE_RMS_THRESHOLD } from './core/pitchDetector';
 import { RecordingList, type Recording } from './core/recordings';
 import { parseSong } from './core/songParser';
 import { songToItems, toEntries, type StaffItem } from './core/staff';
+import { staffToTab } from './core/tabExport';
 import { DEFAULT_SETTINGS, LIMITS, loadSettings, saveSettings, type Settings } from './settings';
 import { Library, type Song } from './storage/library';
 import { StaffView } from './ui/staffView';
@@ -43,6 +44,7 @@ const staff = new StaffView(staffScroller, el('staff'), settings);
 const statusLine = el('status');
 const songList = el<HTMLUListElement>('song-list');
 const importInput = el<HTMLInputElement>('import-input');
+const exportButton = el<HTMLButtonElement>('export-button');
 
 // Songs and recordings live in IndexedDB. If it can't open, the app still works, in memory only.
 const RECORDING_MAX_SECONDS = 5 * 60; // about 6 MB a minute at 48 kHz
@@ -87,6 +89,7 @@ function showStatus(message: string): void {
 
 function redrawStaff(scroll: 'top' | 'bottom' | 'keep'): void {
   staffHint.hidden = items.length > 0;
+  exportButton.disabled = items.length === 0;
   staff.setEntries(toEntries(items, harmonica), scroll);
 }
 
@@ -327,11 +330,27 @@ function renderRecordings(): void {
   el('recording-empty').hidden = recordings.all.length > 0;
 }
 
+function fileStamp(date: Date): string {
+  return date.toISOString().slice(0, 19).replace(/[T:]/g, '-');
+}
+
 async function saveRecording(recording: Recording): Promise<void> {
-  const stamp = recording.startedAt.toISOString().slice(0, 19).replace(/[T:]/g, '-');
-  const file = new File([recording.toWav()], `harmonica-${recording.keyName}-${stamp}.wav`, {
+  const file = new File([recording.toWav()], `harmonica-${recording.keyName}-${fileStamp(recording.startedAt)}.wav`, {
     type: 'audio/wav',
   });
+  await saveFile(file);
+}
+
+/** Saves what's on the staff as a tab file Import can read back. */
+async function exportTab(): Promise<void> {
+  const now = new Date();
+  const base = activeSong ? activeSong.replace(/\.txt$/i, '') : `harmonica-tab-${harmonica.key.name}`;
+  const title = `${activeSong ?? 'Harmonica tab'}, exported for a ${harmonica.key.name} harp on ${now.toLocaleString()}`;
+  const file = new File([staffToTab(items, title)], `${base}-${fileStamp(now)}.txt`, { type: 'text/plain' });
+  await saveFile(file);
+}
+
+async function saveFile(file: File): Promise<void> {
   // On phones, the share sheet can send the file straight to a chat or Drive.
   if (navigator.canShare?.({ files: [file] })) {
     try {
@@ -451,6 +470,8 @@ importInput.addEventListener('change', () => {
   importInput.value = ''; // so choosing the same file again still fires change
   void importFiles(files);
 });
+
+exportButton.addEventListener('click', () => void exportTab());
 
 el('clear-button').addEventListener('click', () => {
   items = [];

@@ -1,7 +1,7 @@
 import { Harmonica, holeString } from './harmonica';
-import { toVexFlowKey } from './notes';
+import { noteNameToFrequency, toVexFlowKey } from './notes';
 import type { DetectedNote } from './pitchDetector';
-import type { SongHole, SongLine } from './songParser';
+import type { SongHole, SongPart } from './songParser';
 
 // Shown in place of a hole number when no hole on the current harmonica matches a note.
 const NO_HOLE_LABEL = 'n/a';
@@ -31,17 +31,24 @@ export interface StaffLine {
   startsPhrase: boolean;
 }
 
-export function songToItems(lines: readonly SongLine[]): StaffItem[] {
-  return lines.flatMap(({ holes, words }) =>
-    holes.map(
+export function songToItems(lines: readonly SongPart[]): StaffItem[] {
+  return lines.flatMap((line): StaffItem[] => {
+    if ('played' in line) {
+      return line.played.map((names) => ({
+        kind: 'played',
+        notes: names.map((name) => ({ name, frequencyHz: noteNameToFrequency(name) })),
+      }));
+    }
+    const { holes, words } = line;
+    return holes.map(
       (hole, i): StaffItem => ({
         kind: 'hole',
         hole,
         word: words[i] ?? '',
         endLine: i === holes.length - 1,
       }),
-    ),
-  );
+    );
+  });
 }
 
 export function toEntries(items: readonly StaffItem[], harmonica: Harmonica): StaffEntry[] {

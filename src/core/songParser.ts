@@ -1,4 +1,5 @@
 import { isPlayable, type Bend } from './harmonica';
+import { isNoteName } from './notes';
 
 export interface SongHole {
   number: number;
@@ -13,6 +14,16 @@ export interface SongLine {
   holes: SongHole[];
   words: string[];
 }
+
+/**
+ * A line of recorded notes, written by pitch rather than hole (as Export writes them), so they
+ * keep their pitch whatever harp is selected. Each entry is one note or chord, e.g. ["E5", "G5"].
+ */
+export interface PlayedLine {
+  played: string[][];
+}
+
+export type SongPart = SongLine | PlayedLine;
 
 // Checked by regex rather than parseInt, which would accept "3rd" as 3 and turn a lyric line like
 // "2nd 3rd" into notes. Bend marks follow the number, e.g. -3' or -3"'.
@@ -49,6 +60,25 @@ export function parseHoleLine(rawLine: string): SongHole[] {
 }
 
 /**
+ * Parses a line of played notes such as "C5 E5+G5 A3", where + joins the notes of a chord. Like
+ * parseHoleLine, returns an empty list unless every token fits.
+ */
+export function parsePlayedLine(rawLine: string): string[][] {
+  const entries: string[][] = [];
+  for (const token of rawLine.split(/\s+/)) {
+    if (token === '') {
+      continue;
+    }
+    const notes = token.split('+');
+    if (!notes.every(isNoteName)) {
+      return [];
+    }
+    entries.push(notes);
+  }
+  return entries;
+}
+
+/**
  * Splits a lyric line into one word-unit per note: whitespace-separated words, further split on
  * any hyphen so each syllable lands on its own note ("a-mong" becomes "a-", "-mong"). The hyphen
  * is kept between a word's own syllables so the UI shows they belong together.
@@ -68,22 +98,33 @@ export function parseLyricLine(rawLine: string): string[] {
 
 /**
  * Parses a song: one staff line per line of holes. A text line immediately after a hole line is
- * that line's lyrics; any other text is ignored.
+ * that line's lyrics; any other text is ignored. A line of note names (see parsePlayedLine) is
+ * recorded notes, as Export writes them.
  *
  * Known limitation: a lyric line made only of valid hole numbers (e.g. a verse marker like "1 2")
- * can't be told apart from a second hole line and is parsed as one.
+ * or note names (e.g. "A1 B2") can't be told apart from notes and is parsed as notes.
  */
-export function parseSong(text: string): SongLine[] {
-  const lines: SongLine[] = [];
+export function parseSong(text: string): SongPart[] {
+  const lines: SongPart[] = [];
   const rawLines = text.split(/\r?\n/);
   for (let i = 0; i < rawLines.length; i++) {
+    const played = parsePlayedLine(rawLines[i]!);
+    if (played.length > 0) {
+      lines.push({ played });
+      continue;
+    }
     const holes = parseHoleLine(rawLines[i]!);
     if (holes.length === 0) {
       continue;
     }
     let words: string[] = [];
     const nextLine = rawLines[i + 1];
-    if (nextLine !== undefined && nextLine.trim() !== '' && parseHoleLine(nextLine).length === 0) {
+    if (
+      nextLine !== undefined &&
+      nextLine.trim() !== '' &&
+      parseHoleLine(nextLine).length === 0 &&
+      parsePlayedLine(nextLine).length === 0
+    ) {
       words = parseLyricLine(nextLine);
       i++;
     }

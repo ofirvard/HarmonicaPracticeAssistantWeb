@@ -24,6 +24,23 @@ export function noteToFrequency(name: string, octave: number): number {
   return 440 * 2 ** ((midi - 69) / 12);
 }
 
+// A full note name as frequencyToNote writes it: sharps only, one-digit octave.
+const NOTE_NAME = /^([A-G]#?)(\d)$/;
+
+/** Whether text is a full note name such as "C5" or "F#4". */
+export function isNoteName(text: string): boolean {
+  return NOTE_NAME.test(text);
+}
+
+/** The frequency of a full note name such as "C#5". */
+export function noteNameToFrequency(noteName: string): number {
+  const match = NOTE_NAME.exec(noteName);
+  if (!match) {
+    throw new Error(`Not a note name: ${noteName}`);
+  }
+  return noteToFrequency(match[1]!, Number(match[2]));
+}
+
 /** Converts a note name like "C#5" into VexFlow's "c#/5" stave-key notation. */
 export function toVexFlowKey(noteName: string): string {
   const split = noteName[1] === '#' ? 2 : 1;

@@ -41,6 +41,24 @@ test('Demo appends and Clear empties the staff', async ({ page }) => {
   expect(await noteCount(page)).toBe(0);
 });
 
+test('Export saves the staff as a tab that Import reads back', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('#export-button')).toBeDisabled();
+  await importSong(page, 'twinkle.txt', SONG);
+  await page.click('#demo-button');
+  const before = await staffText(page);
+  const [download] = await Promise.all([page.waitForEvent('download'), page.click('#export-button')]);
+  expect(download.suggestedFilename()).toMatch(/^twinkle-\d{4}-\d\d-\d\d-\d\d-\d\d-\d\d\.txt$/);
+  const text = readFileSync(await download.path(), 'utf8');
+  expect(text).toContain('4 4 6 6 -6 -6 6\nTwin-kle twin-kle lit-tle star\n');
+  expect(text).toContain('4 -4 5 6 5 -4 4\n'); // the Demo
+  await page.click('#clear-button');
+  await expect(page.locator('#export-button')).toBeDisabled();
+  await importSong(page, 'exported.txt', text);
+  await expect(page.locator('#staff .vf-stavenote')).toHaveCount(25);
+  expect(await staffText(page)).toEqual(before);
+});
+
 test('Import draws notes, bends and hyphenated lyrics', async ({ page }) => {
   await loadSong(page);
   const text = await staffText(page);

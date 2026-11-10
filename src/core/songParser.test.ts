@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Bend } from './harmonica';
-import { parseHoleLine, parseLyricLine, parseSong, type SongHole } from './songParser';
+import { parseHoleLine, parseLyricLine, parsePlayedLine, parseSong, type SongHole } from './songParser';
 
 const holes = (...numbers: number[]): SongHole[] =>
   numbers.map((number) => ({ number, bend: Bend.NONE }));
@@ -50,6 +50,23 @@ describe('parseSong', () => {
 
   it('does not read ordinal lyrics as hole numbers', () => {
     expect(parseSong('4 5\n2nd 3rd\n')).toEqual([{ holes: holes(4, 5), words: ['2nd', '3rd'] }]);
+  });
+
+  it('reads a line of note names as recorded notes, not as lyrics', () => {
+    expect(parseSong('4 5\nE5 C5+E5\nla\n')).toEqual([
+      { holes: holes(4, 5), words: [] },
+      { played: [['E5'], ['C5', 'E5']] },
+    ]);
+  });
+});
+
+describe('parsePlayedLine', () => {
+  it('reads notes and + chords, and nothing unless every token is notes', () => {
+    expect(parsePlayedLine(' A3  F#4+A#4 ')).toEqual([['A3'], ['F#4', 'A#4']]);
+    expect(parsePlayedLine('E5 la')).toEqual([]);
+    expect(parsePlayedLine('E5+')).toEqual([]);
+    expect(parsePlayedLine('Eb5 E')).toEqual([]);
+    expect(parsePlayedLine('4 5')).toEqual([]);
   });
 });
 
