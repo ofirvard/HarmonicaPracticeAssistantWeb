@@ -158,6 +158,19 @@ describe.each([44100, 48000])('PitchDetector at %d Hz', (sampleRate) => {
       expect(rangedNames(tone(freq('G#', 7), 0.3))).toEqual(['G#7']);
     });
 
+    it('does not report rumble lower than any harmonica plays', () => {
+      const rumble = tone(49, 0.3); // G1, like the train recording's engine hum
+      expect(names(rumble)).toEqual(['G1']);
+      expect(rangedNames(rumble)).toEqual([]);
+    });
+
+    it('still reports a lone note outside the harp over background noise', () => {
+      let seed = 1;
+      const random = () => ((seed = (seed * 16807) % 2147483647) / 2147483647) * 2 - 1;
+      const sound = tone(freq('A', 3), 0.3).map((s) => s + 0.08 * random());
+      expect(rangedNames(sound)).toEqual(['A3']);
+    });
+
     it('reports a sound below the harp as itself, not as its overtones', () => {
       const a3 = freq('A', 3);
       const sound = tone(a3, 0.3, 2 * a3, 0.12, 3 * a3, 0.06);

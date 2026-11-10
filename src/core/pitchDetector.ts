@@ -36,6 +36,21 @@ const LOWEST_HARMONICA_NOTE = 190; // just below G3, hole 1 blow on the lowest s
 // With a harp's range set, a note this far beyond its lowest or highest note still counts, so a
 // slightly flat bottom note or sharp top note isn't lost. Half a semitone, the naming boundary.
 const RANGE_MARGIN = 2 ** (50 / 1200);
+// A sound outside the selected harp is only reported if it is a clear tone: its peak must be this
+// many times the median level within half an octave either side. On a train (recording from
+// 2026-11-10, C harp), every noise peak scored under 13 and was written as a stream of n/a
+// entries; a played note scores in the hundreds. Notes the harp can play aren't checked.
+const MIN_OUT_OF_RANGE_PROMINENCE = 20;
+
+/** How far a peak stands above the median level of the bins within half an octave of it. */
+function prominence(mag: Float64Array, peak: Peak, binHz: number): number {
+  const bin = peak.frequencyHz / binHz;
+  const lo = Math.max(1, Math.floor(bin / Math.SQRT2));
+  const hi = Math.min(mag.length - 1, Math.ceil(bin * Math.SQRT2));
+  const around = Array.from(mag.subarray(lo, hi + 1)).sort((a, b) => a - b);
+  const median = around[Math.floor(around.length / 2)]!;
+  return median > 0 ? peak.magnitude / median : Infinity;
+}
 
 function centsBetween(freq: number, expected: number): number {
   return 1200 * Math.log2(freq / expected);
@@ -233,12 +248,20 @@ export class PitchDetector {
 
     fundamentals = absorbIntoWeakFundamentals(fundamentals, weakPeaks, (f) => this.canBeNote(f));
     // Next to a note the harp can play, a sound outside its range is far more likely an overtone or
-    // noise than a second note, so it's only reported when it's the only thing sounding.
+    // noise than a second note, so it's only reported when it's the only thing sounding. Even
+    // then, it must be pitched where some harmonica could play it (not traffic or engine rumble)
+    // and stand out as a clear tone rather than background noise.
     if (this.range) {
       const inRange = fundamentals.filter((f) => this.canBeNote(f.frequencyHz));
-      if (inRange.length > 0) {
-        fundamentals = inRange;
-      }
+      const binHz = sampleRate / fftSize;
+      fundamentals =
+        inRange.length > 0
+          ? inRange
+          : fundamentals.filter(
+              (f) =>
+                f.frequencyHz >= LOWEST_HARMONICA_NOTE &&
+                prominence(mag, f, binHz) >= MIN_OUT_OF_RANGE_PROMINENCE,
+            );
     }
 
     // A note ending partway through the window can split into two peaks that round to the same

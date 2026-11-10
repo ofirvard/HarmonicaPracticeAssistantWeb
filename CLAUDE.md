@@ -33,7 +33,8 @@ Known bugs and unverified behaviour are in `openbugs.md`. Check it before touchi
 History, worked out from the commits: 0.1.0 first working app with recording (`941d184`), 0.2.0
 deploy and offline (`f8f14f5`), 0.3.0 phone layout (`81930e9`), 0.3.1 Import moved (`79965f8`), 0.3.2
 toggle colour fix (`ebd5176`), 0.4.0 save audio (`367d073`), 0.4.1 out-of-range fix (`4d9251e`), 0.5.0
-song library in IndexedDB, recordings, `n/a` (`0d67620`).
+song library in IndexedDB, recordings, `n/a` (`0d67620`). 0.5.1 train noise no longer written as
+`n/a`.
 
 ## Commands
 
@@ -76,8 +77,11 @@ npm run build
   silence threshold 0.015, peak threshold 0.32. Weak fundamentals absorb their overtones, because
   bends put most energy in overtones. When recording, the detector gets the selected harp's range
   (`Harmonica.range`, ±50 cents). A sound outside it can't replace or absorb an in-range note, and is
-  only reported when nothing in range is sounding. Without a range (as in most unit tests) the old
-  behaviour applies.
+  only reported when nothing in range is sounding, it is at least 190 Hz, and it stands at least 20×
+  above the median level within half an octave (so train rumble and noise aren't written as `n/a`).
+  Without a range (as in most unit tests) the old behaviour applies.
+- **Real recordings** live in `src/core/fixtures/` and are replayed by `recordedAudio.test.ts`
+  (imported with `?inline`, so no Node types are needed).
 - **Stabilizer:** a note must appear in two consecutive hops, and only a note not already sounding
   commits an entry.
 - **Staff:** always derived from key-independent `StaffItem`s through `toEntries(items, harmonica)`,
@@ -140,6 +144,9 @@ Real failing audio: Settings → Recent recordings → Save (built). Ask for a W
   F5 needs a WAV), bends other than draw 4, songs and recordings surviving a reopen, the × delete,
   recordings saved when the app is backgrounded, `n/a` width on the staff (may switch to `?`),
   offline in airplane mode.
+- 2026-11-10: first real WAV arrived, from a train with nothing played (not the blow 5 test). It
+  showed noise outside the harp written as `n/a`; fixed in 0.5.1 (see `openbugs.md`). The blow 5
+  retest without the dog is still to come.
 - Confirmed on a real harp: draw 4 bend (before 0.5.0).
 - `npm run test:e2e`: two known failures, both in `openbugs.md`: a flaky chord-onset race in the
   record test, and the narrow-window test (fails on `a1aa082` too).

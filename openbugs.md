@@ -55,6 +55,24 @@ have already missed real failures twice, so none of these count as fixed until t
   by note name. In the simulations it gives `-3"` where it gave `–` before. `-4'` was the first real
   retest and showed the gap above, so other bends are still unconfirmed.
 
+### Background noise written as `n/a` entries (fixed in 0.5.1 for a C harp)
+
+- **Reported (2026-11-10):** recording for a moment on a train, with nothing played, wrote many
+  entries. WAV: `src/core/fixtures/train-noise-C-48k.wav` (7 s, C harp, 48 kHz phone mic).
+- **Cause:** all of it was below a C harp: engine rumble near G1 (49 Hz) and broadband noise
+  around A3 (220 Hz). Since 0.5.0 an out-of-range sound is shown when nothing in range is
+  sounding, so the noise came out as 25 `n/a` entries.
+- **Fix:** with a harp selected, an out-of-range sound is only reported if it is at least 190 Hz
+  (where some harmonica could play it) and a clear tone: its peak at least 20× the median level
+  within half an octave (`MIN_OUT_OF_RANGE_PROMINENCE`). Noise peaks in the recording scored at
+  most 12.3; a clean tone scores in the hundreds. Tested by `recordedAudio.test.ts`, which replays
+  the WAV through the reader and stabilizer.
+- **Still open:** the check only covers sounds outside the selected harp. Replaying the same WAV
+  with the key set to G or A (whose range includes A3) still writes 7–8 entries. Applying it to
+  in-range notes risks quiet bend fundamentals (the draw 4 bend fix), so wait for a real recording
+  of a bend, or of noise on a lower harp, before extending it. A real out-of-range harp note in
+  noise hasn't been tried either.
+
 ### One note written as several entries (reported on 0.5.0, needs a recording)
 
 - **Reported (2026-11-09):** playing blow 5 once wrote several entries. The user's dog was howling
@@ -118,9 +136,8 @@ and range changes. Not investigated yet.
 
 ## Not yet verified
 
-- 48 kHz is only covered by unit tests end to end. The browser fake mic ran at 44.1 kHz, while real
-  browsers usually capture at 48 kHz. The phone recordings so far read single notes and the draw 4
-  bend correctly, but the phone's sample rate wasn't checked. A saved WAV's header shows it.
+- 48 kHz end to end in the browser: the Playwright fake mic runs at 44.1 kHz. The user's Android
+  phone captures at 48 kHz (confirmed from a saved WAV, 2026-11-10), and the unit tests cover both.
 - On the phone: the installed app opening in airplane mode, and the share sheet for saved audio.
 - Dev server file watching with edits made from IntelliJ on `/mnt/c` (polling is on, but it hasn't
   been confirmed by the user).
