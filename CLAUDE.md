@@ -38,7 +38,7 @@ History, worked out from the commits: 0.1.0 first working app with recording (`9
 deploy and offline (`f8f14f5`), 0.3.0 phone layout (`81930e9`), 0.3.1 Import moved (`79965f8`), 0.3.2
 toggle colour fix (`ebd5176`), 0.4.0 save audio (`367d073`), 0.4.1 out-of-range fix (`4d9251e`), 0.5.0
 song library in IndexedDB, recordings, `n/a` (`0d67620`). 0.5.1 train noise no longer written as
-`n/a` (`74e76eb`), 0.6.0 Export.
+`n/a` (`74e76eb`), 0.6.0 Export (`2d93b90`).
 
 ## Commands
 
@@ -134,9 +134,9 @@ npm run build
 
 Real failing audio: Settings → Recent recordings → Save (built). Ask for a WAV before tuning.
 
-## Where things stand (2026-11-09)
+## Where things stand (2026-11-10)
 
-- Live: v0.5.0 (commit `16ff2ef`, tagged), deployed and matching `main`. Deploy only when asked.
+- Live: v0.6.0 (commit `2d93b90`), deployed 2026-11-10 and matching `main`. Deploy only when asked.
 - The user tests on an Android phone through the installed app, recording with its mic. From
   2026-11-09 they also work from a session on the phone.
 - First feedback on 0.5.0: "seems better, but not sensitive enough". Playing blow 5 (one note)
@@ -153,8 +153,18 @@ Real failing audio: Settings → Recent recordings → Save (built). Ask for a W
   showed noise outside the harp written as `n/a`; fixed in 0.5.1 (see `openbugs.md`). The blow 5
   retest without the dog is still to come. Export added the same day in 0.6.0; not yet tried on
   the phone's share sheet.
+- Proposed, not built (2026-11-10): the user asked for less noise sensitivity in general. Noise on
+  notes the harp can play still gets through (the train WAV writes 7–8 entries with the key on G or
+  A). Idea: apply the same clear-tone test in range, taking the best of the note and its 2nd and
+  3rd harmonics (a bend's fundamental alone can be as weak as the noise). Measured by mixing
+  simulated holes and bends, every key, into the train WAV: noise peaks at most 16.6, notes at a
+  normal level 32+, weak-fundamental bends 25+, and only notes as quiet as the noise fall under 20
+  (7 of 384). **Wait for the user's recording of a bend with some background noise** before
+  building it, and don't commit or deploy without asking.
 - Confirmed on a real harp: draw 4 bend (before 0.5.0).
 - `npm run test:e2e`: two known failures, both in `openbugs.md`: a flaky chord-onset race in the
   record test, and the narrow-window test (fails on `a1aa082` too).
 - Pushing from the user's WSL machine: the SSH key has a passphrase, so push over HTTPS with
-  `gh auth git-credential`. A cloud session pushes normally.
+  `gh auth git-credential`. A cloud session pushes once GitHub is connected; on 2026-11-10 pushes
+  failed with 403 until the user reconnected GitHub in claude.ai (in a browser, not the Android
+  app, which swallows the redirect), and tag pushes were still refused afterwards.
